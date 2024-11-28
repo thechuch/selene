@@ -26,9 +26,18 @@ jobs:
       uses: 'google-github-actions/auth@v1'
       with:
         credentials_json: '${{ secrets.GCP_SA_KEY }}'
+        project_id: ${{ env.PROJECT_ID }}
 
     - name: Set up Cloud SDK
       uses: 'google-github-actions/setup-gcloud@v1'
+
+    - name: Enable APIs
+      run: |
+        gcloud services enable cloudbuild.googleapis.com
+        gcloud services enable run.googleapis.com
+
+    - name: Configure Docker
+      run: gcloud auth configure-docker
 
     - name: Build and Deploy to Cloud Run
       run: |
