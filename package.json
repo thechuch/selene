@@ -1,4 +1,3 @@
-{
   "name": "my-nextjs-app",
   "version": "0.1.0",
   "private": true,
@@ -32,3 +31,4 @@
     "typescript": "^5"
   }
 }
+
