@@ -11,12 +11,13 @@ const io = new Server({
 io.on('connection', (socket) => {
   console.log('Client connected');
 
-  socket.on('transcriptionStart', () => {
-    console.log('Transcription started');
+  socket.on('transcriptionCreated', (transcription) => {
+    // Broadcast to all other clients
+    socket.broadcast.emit('newTranscription', transcription);
   });
 
-  socket.on('transcriptionUpdate', (text) => {
-    socket.broadcast.emit('transcriptionUpdate', text);
+  socket.on('transcriptionDeleted', (id) => {
+    socket.broadcast.emit('deleteTranscription', id);
   });
 
   socket.on('disconnect', () => {
@@ -28,5 +29,5 @@ const port = process.env.SOCKET_PORT || 3001;
 io.listen(Number(port));
 
 export async function GET() {
-  return NextResponse.json({ status: 'Socket server running' });
+  return NextResponse.json({ status: 'WebSocket server running' });
 } 

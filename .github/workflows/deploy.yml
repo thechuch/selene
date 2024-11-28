@@ -41,7 +41,8 @@ jobs:
           --project ${{ env.PROJECT_ID }} \
           --region ${{ env.REGION }} \
           --set-env-vars OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} \
-          --set-env-vars FIREBASE_PROJECT_ID=selene-c0c22 \
-          --set-env-vars FIREBASE_CLIENT_EMAIL=firebase-adminsdk-uwj9y@selene-c0c22.iam.gserviceaccount.com \
+          --set-env-vars FIREBASE_PROJECT_ID=${{ env.PROJECT_ID }} \
+          --set-env-vars FIREBASE_CLIENT_EMAIL=${{ secrets.FIREBASE_CLIENT_EMAIL }} \
           --set-env-vars FIREBASE_PRIVATE_KEY="${{ secrets.FIREBASE_PRIVATE_KEY }}" \
+          --set-env-vars NEXT_PUBLIC_SOCKET_URL=${{ secrets.NEXT_PUBLIC_SOCKET_URL }} \
           --allow-unauthenticated

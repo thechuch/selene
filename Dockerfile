@@ -27,6 +27,8 @@ EXPOSE 8080
 
 # Set runtime environment variables
 ENV PORT=8080
+ENV SOCKET_PORT=3001
+ENV NODE_ENV=production
 
 # Start the Next.js application
 CMD ["npm", "start"]

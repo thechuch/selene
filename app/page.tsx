@@ -2,6 +2,7 @@
 
 import { FaMicrophone, FaStop, FaCamera, FaPaperPlane, FaClock } from "react-icons/fa";
 import { useState, useRef, useEffect } from "react";
+import TranscriptionList from "../components/TranscriptionList";
 
 export default function Home() {
   const [isRecording, setIsRecording] = useState(false);
@@ -128,9 +129,11 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-black p-6">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-center text-6xl font-light mb-12 bg-gradient-to-r from-yellow-400 via-orange-500 to-orange-700 text-transparent bg-clip-text">Selene</h1>
+        <h1 className="text-center text-6xl font-light mb-12 bg-gradient-to-r from-yellow-400 via-orange-500 to-orange-700 text-transparent bg-clip-text">
+          Selene
+        </h1>
         
-        <div className="bg-gray-900 p-4 rounded-lg">
+        <div className="bg-gray-900 p-4 rounded-lg mb-8">
           <div className="flex items-center space-x-4">
             {/* Recording button */}
             <button
@@ -192,6 +195,9 @@ export default function Home() {
             </div>
           )}
         </div>
+
+        {/* Transcription List */}
+        <TranscriptionList />
       </div>
     </div>
   );

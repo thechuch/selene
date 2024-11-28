@@ -32,3 +32,22 @@ textarea {
   transition: height 0.2s ease;
   overflow: hidden;
 }
+
+/* Add to your existing CSS */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .analysis-section, .analysis-section * {
+    visibility: visible;
+  }
+  .analysis-section {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+  .no-print {
+    display: none !important;
+  }
+}

@@ -1,34 +1,32 @@
-import * as admin from "firebase-admin";
+import * as admin from 'firebase-admin';
 
-let firestore: admin.firestore.Firestore | null = null;
-
-const initializeFirebase = () => {
-  if (firestore) return firestore;
-  
+if (!admin.apps.length) {
   try {
-    if (!admin.apps.length) {
-      if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL || !process.env.FIREBASE_PRIVATE_KEY) {
-        console.warn("Firebase credentials not found, skipping initialization");
-        return null;
-      }
+    console.log('Firebase Config Check:', {
+      hasProjectId: !!process.env.FIREBASE_PROJECT_ID,
+      hasClientEmail: !!process.env.FIREBASE_CLIENT_EMAIL,
+      hasPrivateKey: !!process.env.FIREBASE_PRIVATE_KEY,
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL?.substring(0, 5) + '...',
+    });
 
-      admin.initializeApp({
-        credential: admin.credential.cert({
-          projectId: process.env.FIREBASE_PROJECT_ID,
-          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-          privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-        }),
-        databaseURL: `https://selene-c0c22.firebaseio.com`,
-      });
-      console.log("Firebase Admin initialized successfully");
-    }
+    const credential = admin.credential.cert({
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    });
+
+    admin.initializeApp({
+      credential,
+    });
     
-    firestore = admin.firestore();
-    return firestore;
+    console.log('Firebase Admin initialized successfully');
   } catch (error) {
-    console.error("Error initializing Firebase Admin:", error);
-    return null;
+    console.error('Firebase admin initialization error:', error);
+    throw error;
   }
-};
+}
 
-export default initializeFirebase();
+const db = admin.firestore();
+
+export default db;

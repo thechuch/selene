@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
-import firestore from "../../../firebaseAdmin";
-import { FieldValue } from "firebase-admin/firestore";
+import { saveTranscription } from "../../../utils/firestore";
+import { io } from 'socket.io-client';
+
+const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3001';
 
 export async function POST(request: Request) {
   try {
@@ -73,26 +75,35 @@ export async function POST(request: Request) {
     const data = await response.json();
     console.log("Transcription received:", data.text);
 
-    // Try to save to Firestore if available
-    if (firestore) {
-      try {
-        console.log("Attempting to save to Firestore...");
-        const db = firestore.collection('selene-firestore-database');
-        await db.doc('transcriptions').collection('records').add({
-          text: data.text,
-          createdAt: FieldValue.serverTimestamp(),
-          timestamp: new Date().toISOString(),
-        });
-        console.log("Saved to Firestore successfully");
-      } catch (firestoreError) {
-        console.error("Failed to save to Firestore:", firestoreError);
-        // Continue without Firestore
-      }
-    } else {
-      console.log("Firestore not initialized, skipping save");
-    }
+    // Save to Firestore
+    try {
+      const transcriptionId = await saveTranscription(data.text, {
+        duration: audioBlob.size > 0 ? audioBlob.size / 16000 : undefined,
+        language: 'en'
+      });
+      
+      // Emit new transcription event
+      const socket = io(SOCKET_URL);
+      socket.emit('transcriptionCreated', {
+        id: transcriptionId,
+        text: data.text,
+        createdAt: new Date().toISOString(),
+        metadata: {
+          duration: audioBlob.size > 0 ? audioBlob.size / 16000 : undefined,
+          language: 'en'
+        }
+      });
+      socket.disconnect();
 
-    return NextResponse.json({ text: data.text });
+      return NextResponse.json({ 
+        text: data.text,
+        id: transcriptionId
+      });
+    } catch (firestoreError) {
+      console.error("Firestore error:", firestoreError);
+      // Continue without failing the request
+      return NextResponse.json({ text: data.text });
+    }
   } catch (error) {
     console.error("Detailed error information:");
     if (error instanceof Error) {
