@@ -31,11 +31,6 @@ jobs:
     - name: Set up Cloud SDK
       uses: 'google-github-actions/setup-gcloud@v1'
 
-    - name: Enable APIs
-      run: |
-        gcloud services enable cloudbuild.googleapis.com
-        gcloud services enable run.googleapis.com
-
     - name: Configure Docker
       run: gcloud auth configure-docker
 
