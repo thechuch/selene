@@ -26,7 +26,6 @@ jobs:
       uses: 'google-github-actions/auth@v1'
       with:
         credentials_json: '${{ secrets.GCP_SA_KEY }}'
-        project_id: ${{ env.PROJECT_ID }}
 
     - name: Set up Cloud SDK
       uses: 'google-github-actions/setup-gcloud@v1'
@@ -34,15 +33,22 @@ jobs:
     - name: Configure Docker
       run: gcloud auth configure-docker
 
+    - name: Enable required APIs
+      run: |
+        gcloud services enable cloudbuild.googleapis.com
+        gcloud services enable run.googleapis.com
+
     - name: Build and Deploy to Cloud Run
       run: |
+        gcloud builds submit --tag gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}
+        
         gcloud run deploy ${{ env.SERVICE_NAME }} \
-          --source . \
-          --project ${{ env.PROJECT_ID }} \
+          --image gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }} \
+          --platform managed \
           --region ${{ env.REGION }} \
-          --set-env-vars OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} \
-          --set-env-vars FIREBASE_PROJECT_ID=${{ env.PROJECT_ID }} \
-          --set-env-vars FIREBASE_CLIENT_EMAIL=${{ secrets.FIREBASE_CLIENT_EMAIL }} \
-          --set-env-vars FIREBASE_PRIVATE_KEY="${{ secrets.FIREBASE_PRIVATE_KEY }}" \
-          --set-env-vars NEXT_PUBLIC_SOCKET_URL=${{ secrets.NEXT_PUBLIC_SOCKET_URL }} \
+          --project ${{ env.PROJECT_ID }} \
+          --set-env-vars="OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" \
+          --set-env-vars="FIREBASE_PROJECT_ID=${{ env.PROJECT_ID }}" \
+          --set-env-vars="FIREBASE_CLIENT_EMAIL=${{ secrets.FIREBASE_CLIENT_EMAIL }}" \
+          --set-env-vars="FIREBASE_PRIVATE_KEY=${{ secrets.FIREBASE_PRIVATE_KEY }}" \
           --allow-unauthenticated
