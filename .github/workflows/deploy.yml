@@ -27,10 +27,18 @@ jobs:
         node-version: '18'
         cache: 'npm'
 
+    - name: Install jq
+      run: sudo apt-get install -y jq
+
     - name: Verify package.json
       run: |
         echo "Verifying package.json format..."
-        cat package.json | jq .
+        if ! jq empty package.json 2>/dev/null; then
+          echo "Error: package.json is not valid JSON"
+          echo "Content of package.json:"
+          cat package.json
+          exit 1
+        fi
         echo "package.json is valid JSON"
 
     - name: Google Auth
