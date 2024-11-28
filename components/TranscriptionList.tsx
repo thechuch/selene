@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, Timestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
 interface Transcription {
   id: string;
   text: string;
-  timestamp: any;
+  timestamp: Timestamp;
+  status: 'processing' | 'completed' | 'error';
 }
 
 export default function TranscriptionList() {
@@ -42,7 +43,10 @@ export default function TranscriptionList() {
           >
             <p className="text-gray-300">{transcription.text}</p>
             <p className="text-sm text-gray-500 mt-2">
-              {transcription.timestamp?.toDate().toLocaleString()}
+              {transcription.timestamp.toDate().toLocaleString()}
+            </p>
+            <p className="text-sm text-gray-400">
+              Status: {transcription.status}
             </p>
           </div>
         ))}
