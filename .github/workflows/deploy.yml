@@ -25,11 +25,12 @@ jobs:
       uses: actions/setup-node@v3
       with:
         node-version: '18'
-        cache: 'npm'
 
     - name: Install dependencies
       run: |
-        npm ci
+        echo "Installing dependencies..."
+        npm install
+        echo "Building application..."
         npm run build
 
     - name: Google Auth
@@ -45,26 +46,18 @@ jobs:
       run: |
         gcloud auth configure-docker gcr.io
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-
-    - name: Build Docker image
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        push: false
-        load: true
-        tags: gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
-        build-args: |
-          OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
-          FIREBASE_PROJECT_ID=${{ env.PROJECT_ID }}
-          FIREBASE_CLIENT_EMAIL=${{ secrets.FIREBASE_CLIENT_EMAIL }}
-          FIREBASE_PRIVATE_KEY=${{ secrets.FIREBASE_PRIVATE_KEY }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
-
-    - name: Push Docker image
+    - name: Build and Push Docker image
       run: |
+        echo "Building Docker image..."
+        docker build \
+          --build-arg OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}" \
+          --build-arg FIREBASE_PROJECT_ID="${{ env.PROJECT_ID }}" \
+          --build-arg FIREBASE_CLIENT_EMAIL="${{ secrets.FIREBASE_CLIENT_EMAIL }}" \
+          --build-arg FIREBASE_PRIVATE_KEY="${{ secrets.FIREBASE_PRIVATE_KEY }}" \
+          -t "gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }}" \
+          .
+        
+        echo "Pushing Docker image..."
         docker push "gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }}"
 
     - name: Deploy to Cloud Run
