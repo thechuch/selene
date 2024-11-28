@@ -9,6 +9,8 @@ env:
   PROJECT_ID: selene-c0c22
   SERVICE_NAME: selene-app
   REGION: us-central1
+  NEXT_PUBLIC_FIREBASE_PROJECT_ID: selene-c0c22
+  NEXT_PUBLIC_FIREBASE_API_KEY: AIzaSyDxGXZxZHBWQZeGEZ6JIVhx_MPBPLmGBQk
 
 jobs:
   deploy:
@@ -69,6 +71,9 @@ jobs:
         npm install
         echo "Building application..."
         npm run build
+      env:
+        NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ env.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+        NEXT_PUBLIC_FIREBASE_API_KEY: ${{ env.NEXT_PUBLIC_FIREBASE_API_KEY }}
 
     - name: Google Auth
       id: auth
@@ -92,6 +97,8 @@ jobs:
           --build-arg FIREBASE_PROJECT_ID="${{ env.PROJECT_ID }}" \
           --build-arg FIREBASE_CLIENT_EMAIL="${{ secrets.FIREBASE_CLIENT_EMAIL }}" \
           --build-arg FIREBASE_PRIVATE_KEY="${{ secrets.FIREBASE_PRIVATE_KEY }}" \
+          --build-arg NEXT_PUBLIC_FIREBASE_PROJECT_ID="${{ env.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}" \
+          --build-arg NEXT_PUBLIC_FIREBASE_API_KEY="${{ env.NEXT_PUBLIC_FIREBASE_API_KEY }}" \
           -t "gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }}" \
           .
         
@@ -109,4 +116,6 @@ jobs:
           --set-env-vars="FIREBASE_PROJECT_ID=${{ env.PROJECT_ID }}" \
           --set-env-vars="FIREBASE_CLIENT_EMAIL=${{ secrets.FIREBASE_CLIENT_EMAIL }}" \
           --set-env-vars="FIREBASE_PRIVATE_KEY=${{ secrets.FIREBASE_PRIVATE_KEY }}" \
+          --set-env-vars="NEXT_PUBLIC_FIREBASE_PROJECT_ID=${{ env.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}" \
+          --set-env-vars="NEXT_PUBLIC_FIREBASE_API_KEY=${{ env.NEXT_PUBLIC_FIREBASE_API_KEY }}" \
           --allow-unauthenticated
