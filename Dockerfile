@@ -26,23 +26,19 @@ ENV OPENAI_API_KEY=$OPENAI_API_KEY \
     FIREBASE_PRIVATE_KEY=$FIREBASE_PRIVATE_KEY \
     NEXT_TELEMETRY_DISABLED=1 \
     NODE_ENV=production \
-    PORT=8080 \
-    NPM_CONFIG_LOGLEVEL=verbose
+    PORT=8080
 
 # Copy package files first
 COPY package.json ./
 
-# Clean install dependencies
-RUN echo "Installing dependencies..." && \
-    npm cache clean --force && \
-    npm install --no-package-lock --verbose
+# Install production dependencies
+RUN npm install --production=false
 
 # Copy the rest of the application code
 COPY . .
 
 # Build the Next.js application
-RUN echo "Building application..." && \
-    npm run build
+RUN npm run build
 
 # Expose the port the app runs on
 EXPOSE 8080
