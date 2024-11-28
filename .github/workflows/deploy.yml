@@ -31,19 +31,28 @@ jobs:
       uses: 'google-github-actions/setup-gcloud@v1'
 
     - name: Configure Docker
-      run: gcloud auth configure-docker
-
-    - name: Enable required APIs
       run: |
-        gcloud services enable cloudbuild.googleapis.com
-        gcloud services enable run.googleapis.com
+        gcloud auth configure-docker gcr.io
+        docker buildx create --use
 
-    - name: Build and Deploy to Cloud Run
+    - name: Build Docker image
       run: |
-        gcloud builds submit --tag gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}
-        
+        docker build \
+          --build-arg OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}" \
+          --build-arg FIREBASE_PROJECT_ID="${{ env.PROJECT_ID }}" \
+          --build-arg FIREBASE_CLIENT_EMAIL="${{ secrets.FIREBASE_CLIENT_EMAIL }}" \
+          --build-arg FIREBASE_PRIVATE_KEY="${{ secrets.FIREBASE_PRIVATE_KEY }}" \
+          -t "gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }}" \
+          .
+
+    - name: Push Docker image
+      run: |
+        docker push "gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }}"
+
+    - name: Deploy to Cloud Run
+      run: |
         gcloud run deploy ${{ env.SERVICE_NAME }} \
-          --image gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }} \
+          --image "gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }}" \
           --platform managed \
           --region ${{ env.REGION }} \
           --project ${{ env.PROJECT_ID }} \
