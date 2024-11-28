@@ -21,6 +21,18 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Verify package.json
+      run: |
+        echo "Verifying package.json format..."
+        cat package.json | jq .
+        echo "package.json is valid JSON"
+
     - name: Google Auth
       id: auth
       uses: 'google-github-actions/auth@v1'
@@ -33,11 +45,12 @@ jobs:
     - name: Configure Docker
       run: |
         gcloud auth configure-docker gcr.io
-        docker buildx create --use
 
     - name: Build Docker image
       run: |
+        echo "Building Docker image..."
         docker build \
+          --progress=plain \
           --build-arg OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}" \
           --build-arg FIREBASE_PROJECT_ID="${{ env.PROJECT_ID }}" \
           --build-arg FIREBASE_CLIENT_EMAIL="${{ secrets.FIREBASE_CLIENT_EMAIL }}" \

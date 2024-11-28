@@ -1,6 +1,9 @@
 # Use the official Node.js image
 FROM node:18-alpine
 
+# Install dependencies required for node-gyp
+RUN apk add --no-cache python3 make g++
+
 # Set working directory
 WORKDIR /app
 
@@ -11,17 +14,20 @@ ARG FIREBASE_CLIENT_EMAIL
 ARG FIREBASE_PRIVATE_KEY
 
 # Set environment variables
-ENV OPENAI_API_KEY=$OPENAI_API_KEY
-ENV FIREBASE_PROJECT_ID=$FIREBASE_PROJECT_ID
-ENV FIREBASE_CLIENT_EMAIL=$FIREBASE_CLIENT_EMAIL
-ENV FIREBASE_PRIVATE_KEY=$FIREBASE_PRIVATE_KEY
-ENV NEXT_TELEMETRY_DISABLED=1
-ENV NODE_ENV=production
-ENV PORT=8080
+ENV OPENAI_API_KEY=$OPENAI_API_KEY \
+    FIREBASE_PROJECT_ID=$FIREBASE_PROJECT_ID \
+    FIREBASE_CLIENT_EMAIL=$FIREBASE_CLIENT_EMAIL \
+    FIREBASE_PRIVATE_KEY=$FIREBASE_PRIVATE_KEY \
+    NEXT_TELEMETRY_DISABLED=1 \
+    NODE_ENV=production \
+    PORT=8080
 
-# Install dependencies first (caching)
-COPY package*.json ./
-RUN npm ci
+# Copy package files first
+COPY package.json package-lock.json ./
+
+# Install dependencies with clean slate
+RUN npm cache clean --force && \
+    npm install
 
 # Copy the rest of the application code
 COPY . .
