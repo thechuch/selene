@@ -1,120 +1,77 @@
 import { NextResponse } from "next/server";
-import { saveTranscription } from "../../../utils/firestore";
-import { io } from 'socket.io-client';
+import { initializeApp, cert, getApps } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
 
-const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3001';
+// Initialize Firebase Admin
+if (!getApps().length) {
+  initializeApp({
+    credential: cert({
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    }),
+  });
+}
+
+const db = getFirestore();
 
 export async function POST(request: Request) {
   try {
-    console.log("Starting transcription request...");
-    console.log("Environment check:", {
-      hasFirebaseProjectId: !!process.env.FIREBASE_PROJECT_ID,
-      hasFirebaseClientEmail: !!process.env.FIREBASE_CLIENT_EMAIL,
-      hasFirebasePrivateKey: !!process.env.FIREBASE_PRIVATE_KEY,
-      hasOpenAIKey: !!process.env.OPENAI_API_KEY,
-    });
-
-    const formData = await request.formData();
-    console.log("FormData received");
-
-    // Retrieve the audio file from the form data
-    const audioFile = formData.get("file");
-    console.log("Audio file retrieved:", audioFile instanceof Blob ? "Blob" : typeof audioFile, "Size:", audioFile instanceof Blob ? audioFile.size : 'N/A');
+    const contentType = request.headers.get("content-type") || "";
     
-    if (!audioFile || !(audioFile instanceof Blob)) {
-      console.error("Invalid audio file provided");
-      return NextResponse.json(
-        { error: "Invalid audio file provided" },
-        { status: 400 }
-      );
-    }
-
-    if (!process.env.OPENAI_API_KEY) {
-      console.error("OpenAI API key not found");
-      return NextResponse.json(
-        { error: "OpenAI API key not configured" },
-        { status: 500 }
-      );
-    }
-
-    // Convert to proper audio format if needed
-    const audioBlob = new Blob([audioFile], { type: 'audio/webm' });
-    console.log("Audio blob created, size:", audioBlob.size);
-
-    console.log("Creating OpenAI form data...");
-    const openaiFormData = new FormData();
-    openaiFormData.append("file", audioBlob, "recording.webm");
-    openaiFormData.append("model", "whisper-1");
-    console.log("OpenAI form data created");
-
-    console.log("Sending request to OpenAI...");
-    const response = await fetch(
-      "https://api.openai.com/v1/audio/transcriptions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        },
-        body: openaiFormData,
-      }
-    );
-    console.log("OpenAI response status:", response.status);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("OpenAI API Error:", errorText);
-      console.error("OpenAI API Status:", response.status);
-      console.error("OpenAI API Headers:", Object.fromEntries(response.headers.entries()));
-      return NextResponse.json(
-        { error: `OpenAI API Error: ${errorText}` },
-        { status: response.status }
-      );
-    }
-
-    console.log("Parsing OpenAI response...");
-    const data = await response.json();
-    console.log("Transcription received:", data.text);
-
-    // Save to Firestore
-    try {
-      const transcriptionId = await saveTranscription(data.text, {
-        duration: audioBlob.size > 0 ? audioBlob.size / 16000 : undefined,
-        language: 'en'
-      });
-      
-      // Emit new transcription event
-      const socket = io(SOCKET_URL);
-      socket.emit('transcriptionCreated', {
-        id: transcriptionId,
-        text: data.text,
-        createdAt: new Date().toISOString(),
-        metadata: {
-          duration: audioBlob.size > 0 ? audioBlob.size / 16000 : undefined,
-          language: 'en'
-        }
-      });
-      socket.disconnect();
-
-      return NextResponse.json({ 
-        text: data.text,
-        id: transcriptionId
-      });
-    } catch (firestoreError) {
-      console.error("Firestore error:", firestoreError);
-      // Continue without failing the request
-      return NextResponse.json({ text: data.text });
-    }
-  } catch (error) {
-    console.error("Detailed error information:");
-    if (error instanceof Error) {
-      console.error("Error name:", error.name);
-      console.error("Error message:", error.message);
-      console.error("Error stack:", error.stack);
+    let text: string;
+    
+    if (contentType.includes("application/json")) {
+      const json = await request.json();
+      text = json.text;
     } else {
-      console.error("Unknown error type:", String(error));
+      const formData = await request.formData();
+      const audioFile = formData.get("file");
+      
+      if (!audioFile || !(audioFile instanceof Blob)) {
+        return NextResponse.json(
+          { error: "Invalid audio file" },
+          { status: 400 }
+        );
+      }
+
+      // Convert audio file to buffer
+      const buffer = Buffer.from(await audioFile.arrayBuffer());
+      
+      try {
+        // Create a new document in the transcriptions collection
+        const docRef = await db.collection('transcriptions').add({
+          text: "Processing...",
+          timestamp: new Date(),
+          status: 'processing'
+        });
+
+        // Your OpenAI transcription logic here
+        // After successful transcription:
+        await docRef.update({
+          text: "Transcription placeholder", // Replace with actual transcription
+          status: 'completed'
+        });
+        
+        return NextResponse.json({
+          text: "Transcription placeholder", // Replace with actual transcription
+          saved: true,
+          id: docRef.id
+        });
+        
+      } catch (error) {
+        console.error("Firestore operation failed:", error);
+        return NextResponse.json(
+          { error: "Database operation failed", details: error instanceof Error ? error.message : 'Unknown error' },
+          { status: 500 }
+        );
+      }
     }
+    
+  } catch (error) {
+    console.error("API route error:", error);
     return NextResponse.json(
-      { error: "Internal server error", details: String(error) },
+      { error: "Internal server error", details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }
