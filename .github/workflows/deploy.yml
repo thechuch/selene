@@ -27,19 +27,10 @@ jobs:
         node-version: '18'
         cache: 'npm'
 
-    - name: Install jq
-      run: sudo apt-get install -y jq
-
-    - name: Verify package.json
+    - name: Install dependencies
       run: |
-        echo "Verifying package.json format..."
-        if ! jq empty package.json 2>/dev/null; then
-          echo "Error: package.json is not valid JSON"
-          echo "Content of package.json:"
-          cat package.json
-          exit 1
-        fi
-        echo "package.json is valid JSON"
+        npm ci
+        npm run build
 
     - name: Google Auth
       id: auth
@@ -54,17 +45,23 @@ jobs:
       run: |
         gcloud auth configure-docker gcr.io
 
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
     - name: Build Docker image
-      run: |
-        echo "Building Docker image..."
-        docker build \
-          --progress=plain \
-          --build-arg OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}" \
-          --build-arg FIREBASE_PROJECT_ID="${{ env.PROJECT_ID }}" \
-          --build-arg FIREBASE_CLIENT_EMAIL="${{ secrets.FIREBASE_CLIENT_EMAIL }}" \
-          --build-arg FIREBASE_PRIVATE_KEY="${{ secrets.FIREBASE_PRIVATE_KEY }}" \
-          -t "gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }}" \
-          .
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: false
+        load: true
+        tags: gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
+        build-args: |
+          OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+          FIREBASE_PROJECT_ID=${{ env.PROJECT_ID }}
+          FIREBASE_CLIENT_EMAIL=${{ secrets.FIREBASE_CLIENT_EMAIL }}
+          FIREBASE_PRIVATE_KEY=${{ secrets.FIREBASE_PRIVATE_KEY }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
 
     - name: Push Docker image
       run: |
