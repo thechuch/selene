@@ -2,20 +2,33 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@200;300;400;600&display=swap");
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* Custom global styles */
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: "Poppins", Arial, sans-serif;
+  margin: 0;
+  color: #ffffff;
+}
+
+/* Gradient border for focus state */
+.focus\:border-gradient:focus {
+  border: 1px solid;
+  border-image: linear-gradient(to right, #facc15, #c2410c) 1;
+}
+
+/* Hide scrollbar but maintain functionality */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Textarea auto-resize styles */
+textarea {
+  transition: height 0.2s ease;
+  overflow: hidden;
 }
