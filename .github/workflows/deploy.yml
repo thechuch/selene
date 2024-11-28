@@ -21,17 +21,27 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
+    - name: Fix package.json
+      run: |
+        # Ensure package.json has correct line endings and no BOM
+        tr -d '\r' < package.json > package.json.tmp
+        mv package.json.tmp package.json
+
     - name: Set up Node.js
       uses: actions/setup-node@v3
       with:
         node-version: '18'
+        registry-url: 'https://registry.npmjs.org'
 
     - name: Install dependencies
       run: |
         echo "Installing dependencies..."
-        npm install
+        rm -rf node_modules package-lock.json
+        npm install --no-package-lock
         echo "Building application..."
         npm run build
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
     - name: Google Auth
       id: auth
@@ -50,6 +60,7 @@ jobs:
       run: |
         echo "Building Docker image..."
         docker build \
+          --no-cache \
           --build-arg OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}" \
           --build-arg FIREBASE_PROJECT_ID="${{ env.PROJECT_ID }}" \
           --build-arg FIREBASE_CLIENT_EMAIL="${{ secrets.FIREBASE_CLIENT_EMAIL }}" \
