@@ -1,25 +1,25 @@
 import * as admin from 'firebase-admin';
 
+// Check if we're already initialized
 if (!admin.apps.length) {
   try {
+    // Log environment variables for debugging
     console.log('Firebase Config Check:', {
       hasProjectId: !!process.env.FIREBASE_PROJECT_ID,
       hasClientEmail: !!process.env.FIREBASE_CLIENT_EMAIL,
       hasPrivateKey: !!process.env.FIREBASE_PRIVATE_KEY,
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL?.substring(0, 5) + '...',
+      projectId: process.env.FIREBASE_PROJECT_ID
     });
 
-    const credential = admin.credential.cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-    });
-
+    // Initialize the app
     admin.initializeApp({
-      credential,
+      credential: admin.credential.cert({
+        projectId: process.env.FIREBASE_PROJECT_ID,
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+      })
     });
-    
+
     console.log('Firebase Admin initialized successfully');
   } catch (error) {
     console.error('Firebase admin initialization error:', error);
@@ -28,5 +28,4 @@ if (!admin.apps.length) {
 }
 
 const db = admin.firestore();
-
 export default db;

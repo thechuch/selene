@@ -1,51 +1,27 @@
-# Use the official Node.js image
+# Use Node.js 18 as the base image
 FROM node:18-alpine
 
-# Install dependencies required for node-gyp and npm
-RUN apk update && \
-    apk add --no-cache \
-    python3 \
-    make \
-    g++ \
-    git \
-    libc6-compat
+# Install dependencies required for node-gyp
+RUN apk add --no-cache python3 make g++ git
 
 # Set working directory
 WORKDIR /app
 
-# Accept build arguments
-ARG OPENAI_API_KEY
-ARG FIREBASE_PROJECT_ID
-ARG FIREBASE_CLIENT_EMAIL
-ARG FIREBASE_PRIVATE_KEY
-ARG NEXT_PUBLIC_FIREBASE_PROJECT_ID
-ARG NEXT_PUBLIC_FIREBASE_API_KEY
+# Copy package files
+COPY package*.json ./
 
-# Set environment variables
-ENV OPENAI_API_KEY=$OPENAI_API_KEY \
-    FIREBASE_PROJECT_ID=$FIREBASE_PROJECT_ID \
-    FIREBASE_CLIENT_EMAIL=$FIREBASE_CLIENT_EMAIL \
-    FIREBASE_PRIVATE_KEY=$FIREBASE_PRIVATE_KEY \
-    NEXT_PUBLIC_FIREBASE_PROJECT_ID=$NEXT_PUBLIC_FIREBASE_PROJECT_ID \
-    NEXT_PUBLIC_FIREBASE_API_KEY=$NEXT_PUBLIC_FIREBASE_API_KEY \
-    NEXT_TELEMETRY_DISABLED=1 \
-    NODE_ENV=production \
-    PORT=8080
+# Install dependencies
+RUN npm ci
 
-# Copy package files first
-COPY package.json ./
-
-# Install production dependencies
-RUN npm install --production=false
-
-# Copy the rest of the application code
+# Copy the rest of the application
 COPY . .
 
-# Build the Next.js application
+# Build the application
 RUN npm run build
 
 # Expose the port the app runs on
+ENV PORT=8080
 EXPOSE 8080
 
-# Start the Next.js application
+# Start the application
 CMD ["npm", "start"]
