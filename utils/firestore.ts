@@ -95,6 +95,10 @@ export async function updateTranscription(id: string, text: string) {
 }
 
 export async function updateTranscriptionWithAnalysis(id: string, analysis: string) {
+  if (!id || !analysis) {
+    throw new Error('ID and analysis are required');
+  }
+
   try {
     await transcriptionsRef.doc(id).update({
       'analysis': {

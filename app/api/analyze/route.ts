@@ -35,6 +35,10 @@ export async function POST(request: Request) {
     });
 
     const analysis = completion.choices[0].message.content;
+    
+    if (!analysis) {
+      throw new Error("Failed to generate analysis");
+    }
 
     // Save analysis to Firestore
     await updateTranscriptionWithAnalysis(transcriptionId, analysis);
