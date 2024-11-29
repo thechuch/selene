@@ -12,6 +12,7 @@ export async function saveTranscription(text: string, metadata?: Partial<Transcr
       createdAt: new Date().toISOString(),
       metadata: {
         wordCount: text.split(' ').length,
+        source: 'manual',
         ...metadata
       },
       status: 'completed'
