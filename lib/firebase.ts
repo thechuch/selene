@@ -16,13 +16,8 @@ console.log('Firebase Client Config Check:', {
 });
 
 // Initialize Firebase
-try {
-  const app = initializeApp(firebaseConfig);
-  console.log('Firebase client initialized successfully');
-} catch (error) {
-  console.error('Error initializing Firebase client:', error);
-  throw error;
-}
+const app = initializeApp(firebaseConfig);
+console.log('Firebase client initialized successfully');
 
-const db = getFirestore();
+const db = getFirestore(app);
 export { db }; 

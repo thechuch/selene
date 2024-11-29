@@ -2,12 +2,20 @@ import { NextResponse } from "next/server";
 import db from "../../../firebaseAdmin";
 import * as admin from 'firebase-admin';
 
+interface ErrorDetails {
+  message: string;
+  name: string;
+  code?: string;
+  details?: unknown;
+  stack?: string;
+}
+
 export async function GET() {
   try {
     console.log("Starting Firestore test...");
     
     // Test basic connectivity
-    const healthCheck = await db.collection('_healthcheck').doc('test').set({
+    await db.collection('_healthcheck').doc('test').set({
       timestamp: admin.firestore.FieldValue.serverTimestamp(),
       status: 'ok'
     });
@@ -42,15 +50,16 @@ export async function GET() {
       collections: collections.map(col => col.id),
       testDocument: docData
     });
+    
   } catch (error) {
     console.error('Firestore test failed:', error);
     
     // Get more error details
-    const errorDetails = {
+    const errorDetails: ErrorDetails = {
       message: error instanceof Error ? error.message : String(error),
       name: error instanceof Error ? error.name : 'Unknown',
-      code: (error as any).code,
-      details: (error as any).details,
+      code: (error as { code?: string }).code,
+      details: (error as { details?: unknown }).details,
       stack: process.env.NODE_ENV === 'development' ? (error as Error).stack : undefined
     };
     
