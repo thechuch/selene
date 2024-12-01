@@ -3,12 +3,15 @@ import { formatStrategyPrompt } from "../../../utils/prompts";
 import { updateTranscriptionWithAnalysis } from "../../../utils/firestore";
 import OpenAI from 'openai';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
 export async function POST(request: Request) {
   try {
+    // Initialize OpenAI client inside the handler
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      throw new Error('Missing OpenAI API key');
+    }
+    const openai = new OpenAI({ apiKey });
+
     const { transcriptionId, text } = await request.json();
 
     if (!transcriptionId || !text) {
