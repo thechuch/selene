@@ -1,8 +1,16 @@
-import db from '../firebaseAdmin';
+import { getFirestore } from '../firebaseAdmin';
 import * as admin from 'firebase-admin';
 import type { Transcription } from '../types/firestore';
 
-const transcriptionsRef = db.collection('transcriptions');
+let transcriptionsRef: admin.firestore.CollectionReference | null = null;
+
+function getTranscriptionsRef() {
+  if (!transcriptionsRef) {
+    const db = getFirestore();
+    transcriptionsRef = db.collection('transcriptions');
+  }
+  return transcriptionsRef;
+}
 
 export async function saveTranscription(text: string, metadata?: Partial<Transcription['metadata']>) {
   try {
@@ -18,7 +26,7 @@ export async function saveTranscription(text: string, metadata?: Partial<Transcr
       status: 'completed'
     };
 
-    const docRef = await transcriptionsRef.add(transcription);
+    const docRef = await getTranscriptionsRef().add(transcription);
     return docRef.id;
   } catch (error) {
     console.error('Error saving transcription:', error);
@@ -31,7 +39,7 @@ export async function getTranscriptions(page = 1, limit = 10) {
     const offset = (page - 1) * limit;
     
     // Get one extra item to check if there are more pages
-    const snapshot = await transcriptionsRef
+    const snapshot = await getTranscriptionsRef()
       .orderBy('timestamp', 'desc')
       .limit(limit + 1)
       .offset(offset)
@@ -56,7 +64,7 @@ export async function getTranscriptions(page = 1, limit = 10) {
 
 export async function getTranscription(id: string) {
   try {
-    const doc = await transcriptionsRef.doc(id).get();
+    const doc = await getTranscriptionsRef().doc(id).get();
     if (!doc.exists) {
       throw new Error('Transcription not found');
     }
@@ -72,7 +80,7 @@ export async function getTranscription(id: string) {
 
 export async function deleteTranscription(id: string) {
   try {
-    await transcriptionsRef.doc(id).delete();
+    await getTranscriptionsRef().doc(id).delete();
     return true;
   } catch (error) {
     console.error('Error deleting transcription:', error);
@@ -82,7 +90,7 @@ export async function deleteTranscription(id: string) {
 
 export async function updateTranscription(id: string, text: string) {
   try {
-    await transcriptionsRef.doc(id).update({
+    await getTranscriptionsRef().doc(id).update({
       text,
       'metadata.source': 'edited',
       'status': 'completed',
@@ -101,7 +109,7 @@ export async function updateTranscriptionWithAnalysis(id: string, analysis: stri
   }
 
   try {
-    await transcriptionsRef.doc(id).update({
+    await getTranscriptionsRef().doc(id).update({
       'analysis': {
         strategy: analysis,
         timestamp: admin.firestore.FieldValue.serverTimestamp(),

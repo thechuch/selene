@@ -1,9 +1,19 @@
-import db from '../firebaseAdmin';
+import { getFirestore } from '../firebaseAdmin';
 import * as admin from 'firebase-admin';
+
+let transcriptionsRef: admin.firestore.CollectionReference | null = null;
+
+function getTranscriptionsRef() {
+  if (!transcriptionsRef) {
+    const db = getFirestore();
+    transcriptionsRef = db.collection('transcriptions');
+  }
+  return transcriptionsRef;
+}
 
 export async function getTranscriptions() {
   try {
-    const snapshot = await db.collection('transcriptions')
+    const snapshot = await getTranscriptionsRef()
       .orderBy('timestamp', 'desc')
       .limit(50)
       .get();
@@ -20,7 +30,7 @@ export async function getTranscriptions() {
 
 export async function addTranscription(text: string) {
   try {
-    const docRef = await db.collection('transcriptions').add({
+    const docRef = await getTranscriptionsRef().add({
       text,
       timestamp: admin.firestore.FieldValue.serverTimestamp(),
       createdAt: new Date().toISOString()

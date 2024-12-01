@@ -36,18 +36,10 @@ jobs:
 
     - name: Build and Push Docker image
       env:
-        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        FIREBASE_PROJECT_ID: ${{ env.PROJECT_ID }}
-        FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
-        FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY }}
         NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ env.PROJECT_ID }}
         NEXT_PUBLIC_FIREBASE_API_KEY: ${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
       run: |
         docker build \
-          --build-arg OPENAI_API_KEY="$OPENAI_API_KEY" \
-          --build-arg FIREBASE_PROJECT_ID="$FIREBASE_PROJECT_ID" \
-          --build-arg FIREBASE_CLIENT_EMAIL="$FIREBASE_CLIENT_EMAIL" \
-          --build-arg FIREBASE_PRIVATE_KEY="$FIREBASE_PRIVATE_KEY" \
           --build-arg NEXT_PUBLIC_FIREBASE_PROJECT_ID="$NEXT_PUBLIC_FIREBASE_PROJECT_ID" \
           --build-arg NEXT_PUBLIC_FIREBASE_API_KEY="$NEXT_PUBLIC_FIREBASE_API_KEY" \
           -t "gcr.io/$PROJECT_ID/$SERVICE_NAME:${{ github.sha }}" \

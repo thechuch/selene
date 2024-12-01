@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import db from "../../../firebaseAdmin";
 import * as admin from 'firebase-admin';
 
 interface ErrorDetails {
@@ -13,6 +12,16 @@ interface ErrorDetails {
 export async function GET() {
   try {
     console.log("Starting Firestore test...");
+
+    // Dynamically import and initialize Firebase Admin
+    const { getAdminApp } = await import('../../../firebaseAdmin');
+    const app = getAdminApp();
+
+    if (!app) {
+      throw new Error('Firebase Admin not initialized');
+    }
+
+    const db = app.firestore();
     
     // Test basic connectivity
     await db.collection('_healthcheck').doc('test').set({
