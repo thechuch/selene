@@ -14,7 +14,11 @@ export async function POST(request: Request) {
       const docRef = await db.collection('transcriptions').add({
         text,
         timestamp: new Date(),
-        status: 'completed'
+        status: 'draft',
+        metadata: {
+          source: 'manual',
+          wordCount: text.split(' ').length
+        }
       });
 
       return NextResponse.json({
@@ -37,7 +41,10 @@ export async function POST(request: Request) {
       const docRef = await db.collection('transcriptions').add({
         text: "Processing...",
         timestamp: new Date(),
-        status: 'processing'
+        status: 'processing',
+        metadata: {
+          source: 'recording'
+        }
       });
 
       try {
@@ -66,7 +73,11 @@ export async function POST(request: Request) {
         // Update the document with transcription
         await docRef.update({
           text: data.text,
-          status: 'completed'
+          status: 'draft',
+          metadata: {
+            source: 'recording',
+            wordCount: data.text.split(' ').length
+          }
         });
         
         return NextResponse.json({

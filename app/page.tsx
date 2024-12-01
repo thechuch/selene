@@ -9,6 +9,7 @@ export default function Home() {
   const [transcript, setTranscript] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
+  const [currentTranscriptionId, setCurrentTranscriptionId] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -107,7 +108,8 @@ export default function Home() {
       }
 
       const data = await response.json();
-      setTranscript(prev => prev + (prev ? "\n" : "") + data.text);
+      setTranscript(data.text);
+      setCurrentTranscriptionId(data.id);
       if (textareaRef.current) {
         textareaRef.current.focus();
       }
@@ -122,8 +124,61 @@ export default function Home() {
     console.log("Camera clicked");
   };
 
-  const handleSendClick = () => {
-    console.log("Send clicked");
+  const handleSendClick = async () => {
+    if (!transcript.trim()) return;
+
+    try {
+      if (currentTranscriptionId) {
+        // Update existing transcription
+        const response = await fetch(`/api/transcriptions?id=${currentTranscriptionId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ text: transcript, submit: true }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to update transcription');
+        }
+      } else {
+        // Create new transcription
+        const response = await fetch("/api/transcribe", {
+          method: "POST",
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ text: transcript }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to create transcription');
+        }
+
+        const data = await response.json();
+        setCurrentTranscriptionId(data.id);
+
+        // Submit for analysis
+        const submitResponse = await fetch(`/api/transcriptions?id=${data.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ text: transcript, submit: true }),
+        });
+
+        if (!submitResponse.ok) {
+          throw new Error('Failed to submit for analysis');
+        }
+      }
+
+      // Clear the input
+      setTranscript("");
+      setCurrentTranscriptionId(null);
+    } catch (error) {
+      console.error("Error sending transcription:", error);
+      alert("Failed to send transcription. Please try again.");
+    }
   };
 
   return (
@@ -139,7 +194,11 @@ export default function Home() {
             <button
               onClick={handleTranscribe}
               disabled={isProcessing}
-              className="p-4 bg-yellow-400 rounded-full hover:bg-orange-500 transition-colors"
+              className={`p-4 rounded-full transition-colors ${
+                isRecording 
+                  ? 'bg-red-500 hover:bg-red-600' 
+                  : 'bg-yellow-400 hover:bg-orange-500'
+              }`}
             >
               {isRecording ? (
                 <FaStop className="w-6 h-6 text-white" />
@@ -163,18 +222,19 @@ export default function Home() {
                 value={transcript}
                 onChange={(e) => setTranscript(e.target.value)}
                 placeholder="Tell me something about your business."
-                className="w-full bg-transparent text-white resize-none focus:outline-none rounded-full px-6 py-3 min-h-[48px] border border-transparent hover:border-yellow-400/30 focus:border-gradient"
-                style={{
-                  background: 'transparent',
-                  borderImage: 'linear-gradient(to right, #facc15, #c2410c) 1'
-                }}
+                className="w-full bg-transparent text-white resize-none focus:outline-none rounded-lg px-6 py-3 min-h-[48px] border border-transparent hover:border-yellow-400/30 focus:ring-2 focus:ring-yellow-400 transition-all"
               />
             </div>
 
             {/* Send button */}
             <button
               onClick={handleSendClick}
-              className="p-4 bg-yellow-400 rounded-full hover:bg-orange-500 transition-colors"
+              disabled={!transcript.trim() || isProcessing}
+              className={`p-4 rounded-full transition-colors ${
+                transcript.trim() && !isProcessing
+                  ? 'bg-yellow-400 hover:bg-orange-500'
+                  : 'bg-gray-700 cursor-not-allowed'
+              }`}
             >
               <FaPaperPlane className="w-6 h-6 text-white" />
             </button>
@@ -190,7 +250,8 @@ export default function Home() {
 
           {/* Processing indicator */}
           {isProcessing && (
-            <div className="mt-2 text-yellow-400">
+            <div className="mt-2 text-yellow-400 flex items-center">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-400 mr-2"></div>
               Processing...
             </div>
           )}

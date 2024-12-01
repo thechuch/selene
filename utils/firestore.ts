@@ -88,12 +88,13 @@ export async function deleteTranscription(id: string) {
   }
 }
 
-export async function updateTranscription(id: string, text: string) {
+export async function updateTranscription(id: string, text: string, status: 'draft' | 'completed' = 'draft') {
   try {
     await getTranscriptionsRef().doc(id).update({
       text,
       'metadata.source': 'edited',
-      'status': 'completed',
+      'metadata.wordCount': text.split(' ').length,
+      'status': status,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
     return true;

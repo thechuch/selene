@@ -60,7 +60,7 @@ export async function PUT(request: Request) {
       );
     }
 
-    const { text } = await request.json();
+    const { text, submit } = await request.json();
     if (!text) {
       return NextResponse.json(
         { error: 'Missing text' },
@@ -68,8 +68,37 @@ export async function PUT(request: Request) {
       );
     }
 
-    await updateTranscription(id, text);
-    return NextResponse.json({ success: true });
+    // If submit is true, mark as completed and trigger analysis
+    if (submit) {
+      const { getFirestore } = await import('../../../firebaseAdmin');
+      const db = getFirestore();
+      await db.collection('transcriptions').doc(id).update({
+        text,
+        'metadata.source': 'edited',
+        'metadata.wordCount': text.split(' ').length,
+        'status': 'completed',
+        updatedAt: new Date()
+      });
+
+      // Trigger analysis
+      const response = await fetch(`${request.headers.get('origin')}/api/analyze`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ transcriptionId: id, text }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to trigger analysis');
+      }
+
+      return NextResponse.json({ success: true, analyzed: true });
+    } else {
+      // Just update the text and keep as draft
+      await updateTranscription(id, text, 'draft');
+      return NextResponse.json({ success: true });
+    }
   } catch (error) {
     console.error('Error:', error);
     return NextResponse.json(
