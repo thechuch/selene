@@ -19,9 +19,17 @@ COPY . .
 # Build the application
 RUN npm run build
 
+# Add this section to ensure static files are copied
+RUN cp -r .next/static .next/standalone/.next/ && \
+    cp -r public .next/standalone/ && \
+    cp -r .next/static .next/standalone/.next/static
+
 # Expose the port the app runs on
 ENV PORT=8080
 EXPOSE 8080
 
+# Set the working directory to the standalone directory
+WORKDIR /app/.next/standalone
+
 # Start the application
-CMD ["npm", "start"]
+CMD ["node", "server.js"]
