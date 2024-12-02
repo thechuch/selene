@@ -37,47 +37,113 @@ export default function Library() {
   const fetchTranscriptions = async (searchTerm = '', reset = false) => {
     try {
       setIsLoading(true);
-      let q = query(
-        collection(db, 'transcriptions'),
-        orderBy('timestamp', 'desc'),
-        limit(ITEMS_PER_PAGE)
-      );
+      let q;
 
       if (searchTerm) {
-        // Note: This is a simple implementation. For production, you might want to use
-        // a more sophisticated search solution like Algolia or Elasticsearch
-        q = query(
+        const searchLower = searchTerm.toLowerCase();
+        
+        // Create two queries: one for text search and one for analysis search
+        const textQuery = query(
           collection(db, 'transcriptions'),
-          where('text', '>=', searchTerm),
-          where('text', '<=', searchTerm + '\uf8ff'),
+          orderBy('textLower'),
+          orderBy('timestamp', 'desc'),
+          where('textLower', '>=', searchLower),
+          where('textLower', '<=', searchLower + '\uf8ff'),
           limit(ITEMS_PER_PAGE)
         );
-      } else if (lastVisible && !reset) {
+
+        const analysisQuery = query(
+          collection(db, 'transcriptions'),
+          orderBy('analysis.strategy'),
+          where('analysis.strategy', '>=', searchLower),
+          where('analysis.strategy', '<=', searchLower + '\uf8ff'),
+          limit(ITEMS_PER_PAGE)
+        );
+
+        // Execute both queries
+        const [textSnapshot, analysisSnapshot] = await Promise.all([
+          getDocs(textQuery).catch(e => {
+            console.error('Text search error:', e);
+            return null;
+          }),
+          getDocs(analysisQuery).catch(e => {
+            console.error('Analysis search error:', e);
+            return null;
+          })
+        ]);
+
+        // Combine and deduplicate results
+        const results = new Map<string, any>();
+        
+        if (textSnapshot) {
+          textSnapshot.docs.forEach(doc => {
+            results.set(doc.id, { id: doc.id, ...doc.data(), matchType: 'text' });
+          });
+        }
+        
+        if (analysisSnapshot) {
+          analysisSnapshot.docs.forEach(doc => {
+            if (!results.has(doc.id)) {
+              results.set(doc.id, { id: doc.id, ...doc.data(), matchType: 'analysis' });
+            } else {
+              // If document matches both queries, mark it as such
+              results.get(doc.id).matchType = 'both';
+            }
+          });
+        }
+
+        // Convert map to array and sort by timestamp
+        const combinedResults = Array.from(results.values())
+          .sort((a, b) => b.timestamp.seconds - a.timestamp.seconds)
+          .slice(0, ITEMS_PER_PAGE);
+
+        setTranscriptions(combinedResults);
+        setLastVisible(null); // Reset pagination for combined results
+        
+        // Set total pages based on unique matches
+        setTotalPages(Math.ceil(results.size / ITEMS_PER_PAGE));
+
+      } else {
+        // Regular listing without search
         q = query(
           collection(db, 'transcriptions'),
           orderBy('timestamp', 'desc'),
-          startAfter(lastVisible),
+          ...(lastVisible && !reset ? [startAfter(lastVisible)] : []),
           limit(ITEMS_PER_PAGE)
         );
+
+        const snapshot = await getDocs(q);
+        const docs = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as Transcription[];
+
+        setTranscriptions(docs);
+        
+        if (snapshot.docs.length > 0) {
+          setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
+        } else {
+          setLastVisible(null);
+        }
+
+        // Get total count for pagination
+        const countSnapshot = await getDocs(collection(db, 'transcriptions'));
+        setTotalPages(Math.ceil(countSnapshot.size / ITEMS_PER_PAGE));
       }
-
-      const snapshot = await getDocs(q);
-      const docs = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Transcription[];
-
-      setTranscriptions(docs);
-      setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
-
-      // Get total count for pagination
-      const totalSnapshot = await getDocs(collection(db, 'transcriptions'));
-      setTotalPages(Math.ceil(totalSnapshot.size / ITEMS_PER_PAGE));
       
       setIsLoading(false);
     } catch (error) {
       console.error('Error fetching transcriptions:', error);
       setIsLoading(false);
+      
+      // Show Firebase index creation link if that's the error
+      if (error instanceof Error && error.message.includes('index')) {
+        console.error('Firebase Index Creation Link:', error.message);
+        const urlMatch = error.message.match(/https:\/\/console\.firebase\.google\.com\S+/);
+        if (urlMatch) {
+          alert(`Please create the required index by visiting: ${urlMatch[0]}`);
+        }
+      }
     }
   };
 
@@ -163,9 +229,18 @@ export default function Library() {
                   <p className="text-gray-300 line-clamp-3">{transcription.text}</p>
                 </div>
                 <div className="flex items-center justify-between text-sm">
-                  <span className={`${getStatusColor(transcription.status)}`}>
-                    {transcription.status.charAt(0).toUpperCase() + transcription.status.slice(1)}
-                  </span>
+                  <div className="flex items-center space-x-2">
+                    <span className={`${getStatusColor(transcription.status)}`}>
+                      {transcription.status.charAt(0).toUpperCase() + transcription.status.slice(1)}
+                    </span>
+                    {searchQuery && transcription.matchType && (
+                      <span className="text-xs px-2 py-1 rounded bg-gray-700">
+                        {transcription.matchType === 'both' 
+                          ? 'Matches text & analysis'
+                          : `Matches ${transcription.matchType}`}
+                      </span>
+                    )}
+                  </div>
                   <span className="text-gray-500">
                     {transcription.timestamp.toDate().toLocaleString()}
                   </span>

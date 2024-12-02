@@ -74,6 +74,7 @@ export async function PUT(request: Request) {
       const db = getFirestore();
       await db.collection('transcriptions').doc(id).update({
         text,
+        textLower: text.toLowerCase(),
         'metadata.source': 'edited',
         'metadata.wordCount': text.split(' ').length,
         'status': 'completed',
@@ -96,7 +97,14 @@ export async function PUT(request: Request) {
       return NextResponse.json({ success: true, analyzed: true });
     } else {
       // Just update the text and keep as draft
-      await updateTranscription(id, text, 'draft');
+      const { getFirestore } = await import('../../../firebaseAdmin');
+      const db = getFirestore();
+      await db.collection('transcriptions').doc(id).update({
+        text,
+        textLower: text.toLowerCase(),
+        'status': 'draft',
+        updatedAt: new Date()
+      });
       return NextResponse.json({ success: true });
     }
   } catch (error) {

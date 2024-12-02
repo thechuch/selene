@@ -13,6 +13,7 @@ export async function POST(request: Request) {
       
       const docRef = await db.collection('transcriptions').add({
         text,
+        textLower: text.toLowerCase(),
         timestamp: new Date(),
         status: 'draft',
         metadata: {
@@ -73,6 +74,7 @@ export async function POST(request: Request) {
         // Update the document with transcription
         await docRef.update({
           text: data.text,
+          textLower: data.text.toLowerCase(),
           status: 'draft',
           metadata: {
             source: 'recording',
