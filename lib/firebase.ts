@@ -10,33 +10,48 @@ const firebaseConfig = {
   authDomain: `${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.firebaseapp.com`,
 };
 
-// Log config for debugging (excluding sensitive info)
-console.log('Firebase Client Config Check:', {
-  hasProjectId: !!firebaseConfig.projectId,
-  hasApiKey: !!firebaseConfig.apiKey,
-  projectId: firebaseConfig.projectId
-});
+// Initialize Firebase only on the client side
+function initializeFirebase() {
+  if (typeof window === 'undefined') return null;
 
-if (!firebaseConfig.projectId || !firebaseConfig.apiKey) {
-  throw new Error('Missing required Firebase configuration. Check your environment variables.');
+  try {
+    // Log config for debugging (excluding sensitive info)
+    console.log('Firebase Client Config Check:', {
+      hasProjectId: !!firebaseConfig.projectId,
+      hasApiKey: !!firebaseConfig.apiKey,
+      projectId: firebaseConfig.projectId
+    });
+
+    if (!firebaseConfig.projectId || !firebaseConfig.apiKey) {
+      throw new Error('Missing required Firebase configuration. Check your environment variables.');
+    }
+
+    let app;
+    if (!getApps().length) {
+      app = initializeApp(firebaseConfig);
+      console.log('Firebase client initialized successfully');
+    } else {
+      app = getApps()[0];
+    }
+
+    if (!clientDb) {
+      clientDb = getFirestore(app);
+    }
+
+    return clientDb;
+  } catch (error) {
+    console.error('Error initializing Firebase client:', error);
+    throw error;
+  }
 }
 
-// Initialize Firebase
-let app;
-try {
-  if (!getApps().length) {
-    app = initializeApp(firebaseConfig);
-    console.log('Firebase client initialized successfully');
-  } else {
-    app = getApps()[0];
-  }
-
+// Export a function to get the Firestore instance
+export function getDb() {
   if (!clientDb) {
-    clientDb = getFirestore(app);
+    clientDb = initializeFirebase();
   }
-} catch (error) {
-  console.error('Error initializing Firebase client:', error);
-  throw error;
+  return clientDb;
 }
 
-export const db = clientDb; 
+// For backward compatibility
+export const db = typeof window === 'undefined' ? null : getDb(); 

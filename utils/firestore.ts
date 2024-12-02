@@ -79,12 +79,28 @@ export async function updateTranscriptionWithAnalysis(id: string, analysis: stri
   }
 
   const db = getFirestore();
-  await db.collection('transcriptions').doc(id).update({
-    'analysis': {
-      strategy: analysis,
-      timestamp: admin.firestore.Timestamp.now(),
-      model: 'gpt-4'
-    },
-    'status': 'analyzed'
-  });
+  try {
+    // First update status to processing
+    await db.collection('transcriptions').doc(id).update({
+      'status': 'processing'
+    });
+
+    // Then update with the analysis
+    await db.collection('transcriptions').doc(id).update({
+      'analysis': {
+        strategy: analysis,
+        timestamp: admin.firestore.Timestamp.now(),
+        model: 'gpt-4'
+      },
+      'status': 'analyzed',
+      'updatedAt': admin.firestore.Timestamp.now()
+    });
+  } catch (error) {
+    // If there's an error, update the status to reflect that
+    await db.collection('transcriptions').doc(id).update({
+      'status': 'error',
+      'error': error instanceof Error ? error.message : 'Failed to update analysis'
+    });
+    throw error;
+  }
 } 

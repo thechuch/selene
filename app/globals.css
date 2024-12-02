@@ -2,57 +2,76 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom global styles */
-body {
-  font-family: var(--font-poppins), Arial, sans-serif;
-  margin: 0;
-  color: #ffffff;
-  background: #000000;
-  min-height: 100vh;
+@layer base {
+  body {
+    @apply bg-black text-white min-h-screen;
+    font-family: var(--font-poppins), Arial, sans-serif;
+  }
+
+  textarea {
+    @apply transition-all duration-200 overflow-hidden bg-opacity-20 border-none text-white resize-none;
+  }
+
+  textarea:focus {
+    @apply outline-none ring-2 ring-yellow-400 ring-opacity-30;
+  }
 }
 
-h1.selene-title {
-  font-size: 4rem;
-  font-weight: 300;
-  background: linear-gradient(to right, #facc15, #ea580c, #c2410c);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  text-align: center;
-  margin-bottom: 3rem;
+@layer components {
+  .selene-title {
+    @apply text-6xl font-light text-center mb-12;
+    background: linear-gradient(to right, #facc15, #ea580c, #c2410c);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .main-container {
+    @apply max-w-4xl mx-auto p-6;
+  }
+
+  .input-container {
+    @apply relative bg-gray-900 rounded-lg p-4;
+  }
+
+  .record-button {
+    @apply p-4 rounded-full transition-colors;
+  }
+
+  .record-button.recording {
+    @apply bg-red-500 hover:bg-red-600;
+  }
+
+  .record-button.not-recording {
+    @apply bg-yellow-400 hover:bg-orange-500;
+  }
+
+  .submit-button {
+    @apply p-4 rounded-full transition-colors bg-yellow-400 hover:bg-orange-500 disabled:bg-gray-600 disabled:cursor-not-allowed;
+  }
+
+  .status-message {
+    @apply flex items-center space-x-2 text-yellow-400;
+  }
+
+  .thinking-animation {
+    @apply flex items-center space-x-3 text-yellow-400;
+  }
+
+  .transcription-list {
+    @apply space-y-4 mt-8;
+  }
+
+  .transcription-card {
+    @apply bg-gray-800 rounded-lg p-6 transition-all hover:ring-2 hover:ring-yellow-400/50;
+  }
+
+  .analysis-section {
+    @apply mt-4 p-4 bg-gray-700 rounded-lg;
+  }
 }
 
-/* Gradient border for focus state */
-.focus\:border-gradient:focus {
-  border: 1px solid;
-  border-image: linear-gradient(to right, #facc15, #c2410c) 1;
-}
-
-/* Hide scrollbar but maintain functionality */
-.no-scrollbar {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-
-/* Textarea auto-resize styles */
-textarea {
-  transition: all 0.2s ease;
-  overflow: hidden;
-  background: rgba(0, 0, 0, 0.2);
-  border: none;
-  color: white;
-}
-
-textarea:focus {
-  outline: none;
-  box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.3);
-}
-
-/* Add to your existing CSS */
+/* Print styles */
 @media print {
   body * {
     visibility: hidden;
@@ -69,49 +88,4 @@ textarea:focus {
   .no-print {
     display: none !important;
   }
-}
-
-/* Container styles */
-.main-container {
-  max-width: 64rem;
-  margin: 0 auto;
-  padding: 1.5rem;
-}
-
-/* Button styles */
-.icon-button {
-  padding: 1rem;
-  border-radius: 9999px;
-  transition: all 0.2s ease;
-}
-
-.icon-button.primary {
-  background-color: #facc15;
-}
-
-.icon-button.primary:hover {
-  background-color: #ea580c;
-}
-
-.icon-button.danger {
-  background-color: #ef4444;
-}
-
-.icon-button.danger:hover {
-  background-color: #dc2626;
-}
-
-/* Status message styles */
-.status-message {
-  margin-top: 1rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #facc15;
-}
-
-.status-message .icon {
-  width: 1rem;
-  height: 1rem;
-  margin-right: 0.25rem;
 }

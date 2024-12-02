@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { collection, query, orderBy, limit, startAfter, getDocs, where, Timestamp } from 'firebase/firestore';
-import { db } from '../../lib/firebase';
+import { getDb } from '../../lib/firebase';
 import { FaSearch, FaChevronLeft, FaChevronRight, FaArrowLeft } from 'react-icons/fa';
 import Link from 'next/link';
 
@@ -36,8 +36,13 @@ export default function Library() {
   const [error, setError] = useState<string | null>(null);
   const lastVisibleRef = useRef<any>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout>();
+  const dbRef = useRef(getDb());
 
   const createBaseQuery = useCallback(() => {
+    const db = dbRef.current;
+    if (!db) {
+      throw new Error('Firebase not initialized');
+    }
     return query(
       collection(db, 'transcriptions'),
       orderBy('timestamp', 'desc'),
@@ -46,6 +51,10 @@ export default function Library() {
   }, []);
 
   const createSearchQueries = useCallback((searchTerm: string) => {
+    const db = dbRef.current;
+    if (!db) {
+      throw new Error('Firebase not initialized');
+    }
     const searchLower = searchTerm.toLowerCase();
     return {
       textQuery: query(
@@ -70,6 +79,11 @@ export default function Library() {
     try {
       setIsLoading(true);
       setError(null);
+
+      const db = dbRef.current;
+      if (!db) {
+        throw new Error('Firebase not initialized');
+      }
 
       if (searchTerm) {
         const { textQuery, analysisQuery } = createSearchQueries(searchTerm);

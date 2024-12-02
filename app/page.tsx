@@ -25,7 +25,6 @@ export default function Home() {
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
   const [thinkingIndex, setThinkingIndex] = useState(0);
   const [recordingTime, setRecordingTime] = useState(0);
   const [showStoppedMessage, setShowStoppedMessage] = useState(false);
@@ -162,7 +161,6 @@ export default function Home() {
       const data: TranscriptionResponse = await response.json();
       if (data.text) {
         setTranscript(data.text);
-        setIsExpanded(true);
         if (textareaRef.current) {
           textareaRef.current.focus();
         }
@@ -212,14 +210,20 @@ export default function Home() {
       });
 
       if (!analysisResponse.ok) {
-        throw new Error("Failed to analyze transcription");
+        const errorData = await analysisResponse.json();
+        throw new Error(errorData.error || "Failed to analyze transcription");
       }
 
+      const { analysis } = await analysisResponse.json();
+      if (!analysis) {
+        throw new Error("No analysis received from the server");
+      }
+
+      // Only clear the transcript and reset UI after successful analysis
       setTranscript("");
-      setIsExpanded(false);
     } catch (error) {
       console.error("Error:", error);
-      alert("Failed to process transcription. Please try again.");
+      alert(error instanceof Error ? error.message : "Failed to process transcription. Please try again.");
     } finally {
       setIsProcessing(false);
       setIsAnalyzing(false);
@@ -228,102 +232,78 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-black">
-      <div className="max-w-4xl mx-auto p-6">
-        <h1 className="text-center text-6xl font-light mb-12 bg-gradient-to-r from-yellow-400 via-orange-500 to-orange-700 text-transparent bg-clip-text font-poppins">
-          Selene
-        </h1>
+    <main className="min-h-screen bg-black">
+      <div className="main-container">
+        <h1 className="selene-title">Selene</h1>
         
-        <div className="bg-gray-900 rounded-lg p-6">
-          <div className="flex justify-center items-center gap-4 w-full max-w-3xl mx-auto">
+        <div className="space-y-8">
+          <div className="input-container">
             <textarea
               ref={textareaRef}
               value={transcript}
-              onChange={(e) => {
-                setTranscript(e.target.value);
-                setIsExpanded(e.target.value.length > 0);
-              }}
-              onFocus={() => setIsExpanded(true)}
-              onBlur={() => !transcript && setIsExpanded(false)}
+              onChange={(e) => setTranscript(e.target.value)}
               placeholder="Tell me something about your business"
-              className={`flex-1 p-4 bg-black/10 text-white font-poppins resize-none outline-none transition-all duration-200 ${
-                isExpanded 
-                  ? 'rounded-lg min-h-[100px]' 
-                  : 'rounded-full h-[52px] overflow-hidden'
-              }`}
-              style={{ maxHeight: '300px' }}
+              className="w-full min-h-[100px]"
+              disabled={isRecording || isProcessing}
             />
             
-            <div className="flex gap-2">
-              {!isRecording ? (
-                <button
-                  onClick={startRecording}
-                  disabled={isProcessing}
-                  className={`p-4 rounded-full transition-colors ${
-                    isProcessing 
-                      ? 'bg-gray-600 cursor-not-allowed'
-                      : 'bg-yellow-400 hover:bg-orange-500'
-                  }`}
-                >
-                  <FaMicrophone className="w-6 h-6 text-white" />
-                </button>
-              ) : (
-                <button
-                  onClick={stopRecording}
-                  className="p-4 bg-red-500 rounded-full hover:bg-red-600 transition-colors"
-                >
+            <div className="absolute right-4 bottom-4 flex items-center space-x-4">
+              <button
+                onClick={isRecording ? stopRecording : startRecording}
+                disabled={isProcessing}
+                className={`record-button ${
+                  isRecording ? 'recording' : 'not-recording'
+                } ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                {isRecording ? (
                   <FaStop className="w-6 h-6 text-white" />
-                </button>
-              )}
-
-              {transcript && (
+                ) : (
+                  <FaMicrophone className="w-6 h-6 text-white" />
+                )}
+              </button>
+              
+              {transcript && !isRecording && (
                 <button
                   onClick={handleSubmit}
                   disabled={isProcessing}
-                  className={`p-4 rounded-full transition-colors ${
-                    isProcessing 
-                      ? 'bg-gray-600 cursor-not-allowed'
-                      : 'bg-yellow-400 hover:bg-orange-500'
-                  }`}
+                  className="submit-button"
                 >
                   {isProcessing ? (
-                    <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <div className="animate-spin rounded-full h-6 w-6 border-2 border-white border-b-transparent" />
                   ) : (
                     <FaPaperPlane className="w-6 h-6 text-white" />
                   )}
                 </button>
               )}
             </div>
+            
+            {isRecording && (
+              <div className="absolute left-4 bottom-4 status-message text-red-500">
+                <div className="animate-pulse">●</div>
+                <span className="font-mono">{formatTime(recordingTime)}</span>
+              </div>
+            )}
+            
+            {showStoppedMessage && !isProcessing && (
+              <div className="absolute left-4 bottom-4 status-message">
+                <FaClock className="w-4 h-4 mr-2" />
+                <span>Processing your recording...</span>
+              </div>
+            )}
+            
+            {isAnalyzing && (
+              <div className="absolute left-4 bottom-4 thinking-animation">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current" />
+                <span className="text-sm font-medium animate-pulse">
+                  {thinkingPhrases[thinkingIndex]}...
+                </span>
+              </div>
+            )}
           </div>
 
-          {/* Recording timer */}
-          {isRecording && (
-            <div className="mt-2 text-yellow-400 flex items-center justify-center">
-              <FaClock className="w-4 h-4 mr-1" />
-              <span>{formatTime(recordingTime)}</span>
-            </div>
-          )}
-
-          {/* Status Messages */}
-          {showStoppedMessage && (
-            <div className="mt-4 text-yellow-400 flex items-center justify-center">
-              <span className="text-sm font-medium">Recording Stopped</span>
-            </div>
-          )}
-          
-          {isAnalyzing && (
-            <div className="mt-4 text-yellow-400 flex items-center justify-center">
-              <span className="text-sm font-medium animate-pulse">
-                {thinkingPhrases[thinkingIndex]}...
-              </span>
-            </div>
-          )}
-        </div>
-
-        <div className="mt-8">
           <TranscriptionList />
         </div>
       </div>
-    </div>
+    </main>
   );
 }
