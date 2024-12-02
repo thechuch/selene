@@ -1,5 +1,5 @@
 # Use Node.js 18 as the base image
-FROM node:18-alpine
+FROM node:18-alpine as builder
 
 # Install dependencies required for node-gyp
 RUN apk add --no-cache python3 make g++ git
@@ -19,17 +19,16 @@ COPY . .
 # Build the application
 RUN npm run build
 
-# Add this section to ensure static files are copied
-RUN cp -r .next/static .next/standalone/.next/ && \
-    cp -r public .next/standalone/ && \
-    cp -r .next/static .next/standalone/.next/static
+# Set up the production environment
+WORKDIR /app/.next/standalone
+
+# Copy necessary files and directories
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/static ./.next/static
 
 # Expose the port the app runs on
 ENV PORT=8080
 EXPOSE 8080
 
-# Set the working directory to the standalone directory
-WORKDIR /app/.next/standalone
-
-# Start the application
+# Start the server
 CMD ["node", "server.js"]
