@@ -1,26 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getFirestore } from 'firebase-admin/firestore';
-import { getAdminApp } from '../../../firebaseAdmin';
 import { ImageAnnotatorClient } from '@google-cloud/vision';
-
-// Initialize Firebase Admin SDK
-const app = getAdminApp();
-if (!app) {
-  throw new Error('Firebase Admin SDK not initialized');
-}
-const db = getFirestore(app);
-
-// Initialize Google Cloud Vision client with credentials from environment variables
-const visionClient = new ImageAnnotatorClient({
-  credentials: {
-    client_email: process.env.GOOGLE_CLOUD_CLIENT_EMAIL,
-    private_key: process.env.GOOGLE_CLOUD_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-  },
-  projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
-});
 
 export async function POST(request: NextRequest) {
   try {
+    // Initialize Firebase Admin SDK inside the handler
+    const { getFirestore } = await import('firebase-admin/firestore');
+    const { getAdminApp } = await import('../../../firebaseAdmin');
+
+    const app = getAdminApp();
+    if (!app) {
+      throw new Error('Firebase Admin SDK not initialized');
+    }
+    const db = getFirestore(app);
+
+    // Initialize Google Cloud Vision client with credentials from environment variables
+    const visionClient = new ImageAnnotatorClient({
+      credentials: {
+        client_email: process.env.GOOGLE_CLOUD_CLIENT_EMAIL,
+        private_key: process.env.GOOGLE_CLOUD_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+      },
+      projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
+    });
+
     const { imageData } = await request.json();
 
     if (!imageData) {

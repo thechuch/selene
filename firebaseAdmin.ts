@@ -1,49 +1,38 @@
-import * as admin from 'firebase-admin';
+import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
 
-let app: admin.app.App | undefined;
+export function getAdminApp(): App | null {
+  try {
+    if (!getApps().length) {
+      if (
+        !process.env.FIREBASE_PROJECT_ID ||
+        !process.env.FIREBASE_CLIENT_EMAIL ||
+        !process.env.FIREBASE_PRIVATE_KEY
+      ) {
+        console.error('Missing Firebase environment variables:', {
+          hasProjectId: !!process.env.FIREBASE_PROJECT_ID,
+          hasClientEmail: !!process.env.FIREBASE_CLIENT_EMAIL,
+          hasPrivateKey: !!process.env.FIREBASE_PRIVATE_KEY,
+          projectId: process.env.FIREBASE_PROJECT_ID,
+        });
+        return null;
+      }
 
-export function getAdminApp() {
-  if (app) {
-    return app;
-  }
+      const firebaseConfig = {
+        credential: cert({
+          projectId: process.env.FIREBASE_PROJECT_ID,
+          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+          privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+        }),
+      };
 
-  // Log environment variables for debugging
-  console.log('Firebase Config Check:', {
-    hasProjectId: !!process.env.FIREBASE_PROJECT_ID,
-    hasClientEmail: !!process.env.FIREBASE_CLIENT_EMAIL,
-    hasPrivateKey: !!process.env.FIREBASE_PRIVATE_KEY,
-    projectId: process.env.FIREBASE_PROJECT_ID,
-  });
-
-  if (
-    !process.env.FIREBASE_PROJECT_ID ||
-    !process.env.FIREBASE_CLIENT_EMAIL ||
-    !process.env.FIREBASE_PRIVATE_KEY
-  ) {
-    console.error('Missing Firebase environment variables.');
+      return initializeApp(firebaseConfig);
+    } else {
+      return getApps()[0];
+    }
+  } catch (error) {
+    console.error('Firebase Admin initialization error:', error);
     return null;
   }
-
-  try {
-    // Initialize the app
-    app = admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId: process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-      }),
-    });
-
-    console.log('Firebase Admin initialized successfully');
-  } catch (error) {
-    if (!/already exists/u.test((error as Error).message)) {
-      console.error('Firebase admin initialization error:', error);
-      throw error;
-    }
-    app = admin.app();
-  }
-
-  return app;
 }
 
 export function getFirestore() {

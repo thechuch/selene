@@ -7,14 +7,6 @@ RUN apk add --no-cache python3 make g++ git
 # Set working directory
 WORKDIR /app
 
-# Define build arguments
-ARG NEXT_PUBLIC_FIREBASE_PROJECT_ID
-ARG NEXT_PUBLIC_FIREBASE_API_KEY
-
-# Set environment variables for build time
-ENV NEXT_PUBLIC_FIREBASE_PROJECT_ID=$NEXT_PUBLIC_FIREBASE_PROJECT_ID
-ENV NEXT_PUBLIC_FIREBASE_API_KEY=$NEXT_PUBLIC_FIREBASE_API_KEY
-
 # Copy package files
 COPY package*.json ./
 
