@@ -19,12 +19,16 @@ COPY . .
 # Build the application
 RUN npm run build
 
-# Set up the production environment
-WORKDIR /app/.next/standalone
+# Use a new stage for the final image
+FROM node:18-alpine
 
-# Copy necessary files and directories
+# Set working directory
+WORKDIR /app
+
+# Copy necessary files and directories from builder stage
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/.next/standalone .
 
 # Expose the port the app runs on
 ENV PORT=8080

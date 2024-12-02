@@ -1,29 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { collection, query, orderBy, limit, startAfter, getDocs, where, Timestamp } from 'firebase/firestore';
-import { getDb } from '../../lib/firebase';
+import { useState, useEffect } from 'react';
 import { FaSearch, FaChevronLeft, FaChevronRight, FaArrowLeft } from 'react-icons/fa';
 import Link from 'next/link';
-
-interface TranscriptionAnalysis {
-  strategy: string;
-  timestamp: Timestamp;
-  model: string;
-}
-
-interface Transcription {
-  id: string;
-  text: string;
-  timestamp: Timestamp;
-  status: 'draft' | 'completed' | 'analyzed' | 'processing' | 'error';
-  analysis?: TranscriptionAnalysis;
-  metadata?: {
-    source?: 'recording' | 'manual' | 'edited';
-    wordCount?: number;
-  };
-  matchType?: 'text' | 'analysis' | 'both';
-}
+import type { Transcription } from '../../types/firestore';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -31,182 +11,58 @@ export default function Library() {
   const [transcriptions, setTranscriptions] = useState<Transcription[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const lastVisibleRef = useRef<any>(null);
-  const searchTimeoutRef = useRef<NodeJS.Timeout>();
-  const dbRef = useRef(getDb());
 
-  const createBaseQuery = useCallback(() => {
-    const db = dbRef.current;
-    if (!db) {
-      throw new Error('Firebase not initialized');
-    }
-    return query(
-      collection(db, 'transcriptions'),
-      orderBy('timestamp', 'desc'),
-      limit(ITEMS_PER_PAGE)
-    );
-  }, []);
-
-  const createSearchQueries = useCallback((searchTerm: string) => {
-    const db = dbRef.current;
-    if (!db) {
-      throw new Error('Firebase not initialized');
-    }
-    const searchLower = searchTerm.toLowerCase();
-    return {
-      textQuery: query(
-        collection(db, 'transcriptions'),
-        orderBy('textLower'),
-        orderBy('timestamp', 'desc'),
-        where('textLower', '>=', searchLower),
-        where('textLower', '<=', searchLower + '\uf8ff'),
-        limit(ITEMS_PER_PAGE)
-      ),
-      analysisQuery: query(
-        collection(db, 'transcriptions'),
-        orderBy('analysis.strategy'),
-        where('analysis.strategy', '>=', searchLower),
-        where('analysis.strategy', '<=', searchLower + '\uf8ff'),
-        limit(ITEMS_PER_PAGE)
-      )
-    };
-  }, []);
-
-  const fetchTranscriptions = useCallback(async (searchTerm = '', reset = false) => {
+  const fetchTranscriptions = async (page: number, search: string = '') => {
     try {
       setIsLoading(true);
       setError(null);
 
-      const db = dbRef.current;
-      if (!db) {
-        throw new Error('Firebase not initialized');
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: ITEMS_PER_PAGE.toString(),
+        ...(search && { search })
+      });
+
+      const response = await fetch(`/api/library?${params}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch transcriptions');
       }
 
-      if (searchTerm) {
-        const { textQuery, analysisQuery } = createSearchQueries(searchTerm);
-
-        const [textSnapshot, analysisSnapshot] = await Promise.all([
-          getDocs(textQuery).catch(() => null),
-          getDocs(analysisQuery).catch(() => null)
-        ]);
-
-        const results = new Map<string, Transcription>();
-        
-        if (textSnapshot) {
-          textSnapshot.docs.forEach(doc => {
-            results.set(doc.id, { 
-              id: doc.id, 
-              ...doc.data(), 
-              matchType: 'text' 
-            } as Transcription);
-          });
-        }
-        
-        if (analysisSnapshot) {
-          analysisSnapshot.docs.forEach(doc => {
-            if (!results.has(doc.id)) {
-              results.set(doc.id, { 
-                id: doc.id, 
-                ...doc.data(), 
-                matchType: 'analysis' 
-              } as Transcription);
-            } else {
-              const existing = results.get(doc.id);
-              if (existing) {
-                existing.matchType = 'both';
-              }
-            }
-          });
-        }
-
-        const combinedResults = Array.from(results.values())
-          .sort((a, b) => b.timestamp.seconds - a.timestamp.seconds)
-          .slice(0, ITEMS_PER_PAGE);
-
-        setTranscriptions(combinedResults);
-        lastVisibleRef.current = null;
-        setTotalPages(Math.ceil(results.size / ITEMS_PER_PAGE));
-
-      } else {
-        const baseQuery = createBaseQuery();
-        const q = reset ? baseQuery : 
-          query(
-            collection(db, 'transcriptions'),
-            orderBy('timestamp', 'desc'),
-            ...(lastVisibleRef.current ? [startAfter(lastVisibleRef.current)] : []),
-            limit(ITEMS_PER_PAGE)
-          );
-
-        const snapshot = await getDocs(q);
-        const docs = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as Transcription[];
-
-        setTranscriptions(docs);
-        lastVisibleRef.current = snapshot.docs[snapshot.docs.length - 1] || null;
-
-        if (reset) {
-          const countSnapshot = await getDocs(collection(db, 'transcriptions'));
-          setTotalPages(Math.ceil(countSnapshot.size / ITEMS_PER_PAGE));
-        }
-      }
+      const data = await response.json();
+      setTranscriptions(data.transcriptions);
+      setHasMore(data.hasMore);
     } catch (error) {
       console.error('Error fetching transcriptions:', error);
       setError(error instanceof Error ? error.message : 'Failed to fetch transcriptions');
-      if (error instanceof Error && error.message.includes('index')) {
-        const urlMatch = error.message.match(/https:\/\/console\.firebase\.google\.com\S+/);
-        if (urlMatch) {
-          setError(`Please create the required index by visiting: ${urlMatch[0]}`);
-        }
-      }
     } finally {
       setIsLoading(false);
     }
-  }, [createBaseQuery, createSearchQueries]);
+  };
 
-  // Debounced search
-  const debouncedSearch = useCallback((searchTerm: string) => {
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-    searchTimeoutRef.current = setTimeout(() => {
-      fetchTranscriptions(searchTerm, true);
-    }, 300);
-  }, [fetchTranscriptions]);
-
-  // Initial load
   useEffect(() => {
-    fetchTranscriptions('', true);
-    return () => {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
-    };
-  }, [fetchTranscriptions]);
+    fetchTranscriptions(currentPage, searchQuery);
+  }, [currentPage, searchQuery]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setCurrentPage(1);
-    debouncedSearch(searchQuery);
+    fetchTranscriptions(1, searchQuery);
   };
 
-  const handleNextPage = useCallback(() => {
-    if (currentPage < totalPages) {
+  const handleNextPage = () => {
+    if (hasMore) {
       setCurrentPage(prev => prev + 1);
-      fetchTranscriptions(searchQuery);
     }
-  }, [currentPage, totalPages, fetchTranscriptions, searchQuery]);
+  };
 
-  const handlePrevPage = useCallback(() => {
+  const handlePrevPage = () => {
     if (currentPage > 1) {
       setCurrentPage(prev => prev - 1);
-      fetchTranscriptions(searchQuery, true);
     }
-  }, [currentPage, fetchTranscriptions, searchQuery]);
+  };
 
   const getStatusColor = (status: Transcription['status']) => {
     switch (status) {
@@ -264,65 +120,47 @@ export default function Library() {
             {searchQuery ? 'No matching transcriptions found.' : 'No transcriptions yet.'}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {transcriptions.map((transcription) => (
-              <div
-                key={transcription.id}
-                className="bg-gray-800 rounded-lg p-6 transition-all hover:ring-2 hover:ring-yellow-400/50"
-              >
-                <div className="mb-4">
-                  <p className="text-gray-300 line-clamp-3">{transcription.text}</p>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center space-x-2">
-                    <span className={`${getStatusColor(transcription.status)}`}>
+          <>
+            <div className="space-y-4">
+              {transcriptions.map((transcription) => (
+                <div key={transcription.id} className="bg-gray-900 rounded-lg p-6">
+                  <div className="flex justify-between items-start mb-4">
+                    <div className={`text-sm ${getStatusColor(transcription.status)}`}>
                       {transcription.status.charAt(0).toUpperCase() + transcription.status.slice(1)}
-                    </span>
-                    {searchQuery && transcription.matchType && (
-                      <span className="text-xs px-2 py-1 rounded bg-gray-700">
-                        {transcription.matchType === 'both' 
-                          ? 'Matches text & analysis'
-                          : `Matches ${transcription.matchType}`}
-                      </span>
-                    )}
+                    </div>
+                    <div className="text-sm text-gray-400">
+                      {new Date(transcription.timestamp.seconds * 1000).toLocaleDateString()}
+                    </div>
                   </div>
-                  <span className="text-gray-500">
-                    {transcription.timestamp.toDate().toLocaleString()}
-                  </span>
+                  <p className="text-white">{transcription.text}</p>
+                  {transcription.analysis && (
+                    <div className="mt-4 p-4 bg-gray-800 rounded-lg">
+                      <h3 className="text-yellow-400 mb-2">Analysis</h3>
+                      <p className="text-gray-300">{transcription.analysis.strategy}</p>
+                    </div>
+                  )}
                 </div>
-                {transcription.analysis && (
-                  <div className="mt-4 p-4 bg-gray-700 rounded-lg">
-                    <h3 className="text-blue-400 font-semibold mb-2">Analysis</h3>
-                    <p className="text-gray-300 whitespace-pre-wrap line-clamp-3">
-                      {transcription.analysis.strategy}
-                    </p>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
 
-        {!isLoading && transcriptions.length > 0 && (
-          <div className="flex justify-center items-center space-x-4 mt-8">
-            <button
-              onClick={handlePrevPage}
-              disabled={currentPage === 1}
-              className="p-2 text-gray-400 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <FaChevronLeft className="w-4 h-4" />
-            </button>
-            <span className="text-gray-400">
-              Page {currentPage} of {totalPages}
-            </span>
-            <button
-              onClick={handleNextPage}
-              disabled={currentPage >= totalPages}
-              className="p-2 text-gray-400 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <FaChevronRight className="w-4 h-4" />
-            </button>
-          </div>
+            <div className="flex justify-between items-center mt-8">
+              <button
+                onClick={handlePrevPage}
+                disabled={currentPage === 1}
+                className="p-2 rounded-lg bg-gray-900 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <FaChevronLeft />
+              </button>
+              <span className="text-gray-400">Page {currentPage}</span>
+              <button
+                onClick={handleNextPage}
+                disabled={!hasMore}
+                className="p-2 rounded-lg bg-gray-900 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <FaChevronRight />
+              </button>
+            </div>
+          </>
         )}
       </div>
     </div>

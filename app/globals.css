@@ -3,23 +3,29 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --background: #000000;
+    --foreground: #ffffff;
+  }
+
   body {
-    @apply bg-black text-white min-h-screen;
+    @apply bg-background text-foreground min-h-screen;
     font-family: var(--font-poppins), Arial, sans-serif;
   }
 
   textarea {
-    @apply transition-all duration-200 overflow-hidden bg-opacity-20 border-none text-white resize-none;
+    @apply w-full bg-gray-900/20 rounded-lg p-4 text-white resize-none transition-all duration-200;
+    min-height: 100px;
   }
 
   textarea:focus {
-    @apply outline-none ring-2 ring-yellow-400 ring-opacity-30;
+    @apply outline-none ring-2 ring-yellow-400/30;
   }
 }
 
 @layer components {
   .selene-title {
-    @apply text-6xl font-light text-center mb-12;
+    @apply text-4xl md:text-6xl font-light text-center mb-8;
     background: linear-gradient(to right, #facc15, #ea580c, #c2410c);
     -webkit-background-clip: text;
     background-clip: text;
@@ -27,11 +33,11 @@
   }
 
   .main-container {
-    @apply max-w-4xl mx-auto p-6;
+    @apply max-w-4xl mx-auto px-4 py-8 md:px-6;
   }
 
   .input-container {
-    @apply relative bg-gray-900 rounded-lg p-4;
+    @apply relative bg-gray-900/20 rounded-lg p-4 mb-4;
   }
 
   .record-button {
@@ -63,11 +69,15 @@
   }
 
   .transcription-card {
-    @apply bg-gray-800 rounded-lg p-6 transition-all hover:ring-2 hover:ring-yellow-400/50;
+    @apply bg-gray-900/20 rounded-lg p-6 transition-all hover:ring-2 hover:ring-yellow-400/50;
   }
 
   .analysis-section {
-    @apply mt-4 p-4 bg-gray-700 rounded-lg;
+    @apply mt-4 p-4 bg-gray-800/50 rounded-lg;
+  }
+
+  .view-all-link {
+    @apply inline-flex items-center space-x-2 text-yellow-400 hover:text-yellow-500 transition-colors mt-4;
   }
 }
 

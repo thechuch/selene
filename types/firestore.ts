@@ -1,4 +1,4 @@
-import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { Timestamp } from 'firebase-admin/firestore';
 
 export interface TranscriptionMetadata {
   duration?: number;
@@ -15,18 +15,15 @@ export interface TranscriptionAnalysis {
 }
 
 export interface Transcription {
-  id: string;
+  id?: string;
   text: string;
   textLower?: string;
   timestamp: Timestamp;
   status: 'draft' | 'completed' | 'analyzed' | 'processing' | 'error';
   analysis?: TranscriptionAnalysis;
-  metadata?: {
-    source?: 'recording' | 'manual' | 'edited';
-    wordCount?: number;
-  };
-  matchType?: 'text' | 'analysis' | 'both';
-  updatedAt?: Date;
+  metadata?: TranscriptionMetadata;
+  updatedAt?: Timestamp;
+  error?: string;
 }
 
 export interface TranscriptionWithId extends Transcription {
