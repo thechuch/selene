@@ -1,11 +1,8 @@
 "use client";
 
-import { FaMicrophone, FaStop, FaPaperPlane, FaClock, FaList } from "react-icons/fa";
+import { FaMicrophone, FaStop, FaPaperPlane, FaClock } from "react-icons/fa";
 import { useState, useRef, useEffect } from "react";
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import TranscriptionList from "../components/TranscriptionList";
-import CameraCapture from '../components/CameraCapture';
 
 interface TranscriptionResponse {
   text: string;
@@ -25,7 +22,6 @@ const thinkingPhrases = [
 ] as const;
 
 export default function Home() {
-  const router = useRouter();
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
@@ -231,36 +227,6 @@ export default function Home() {
     }
   };
 
-  const handleCapture = async (imageData: string): Promise<void> => {
-    try {
-      setIsProcessing(true);
-      const response = await fetch('/api/process-photo', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ imageData }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('API Error (Process Photo):', errorText);
-        throw new Error(`Failed to process photo: ${errorText}`);
-      }
-
-      const result = await response.json();
-      console.log('Processed photo:', result);
-      
-      // Navigate to the business cards page
-      router.push('/business-cards');
-    } catch (error) {
-      console.error('Error processing photo:', error);
-      throw error;
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-black">
       <div className="max-w-4xl mx-auto p-6">
@@ -356,17 +322,6 @@ export default function Home() {
 
         <div className="mt-8">
           <TranscriptionList />
-        </div>
-
-        <div className="fixed bottom-8 right-8 flex items-center space-x-4">
-          <Link
-            href="/business-cards"
-            className="p-4 bg-gray-800 rounded-full hover:bg-gray-700 transition-colors"
-          >
-            <FaList className="w-6 h-6 text-white" />
-          </Link>
-          
-          <CameraCapture onCapture={handleCapture} />
         </div>
       </div>
     </div>

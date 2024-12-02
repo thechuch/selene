@@ -1,4 +1,5 @@
 import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
+import { getFirestore as getAdminFirestore } from 'firebase-admin/firestore';
 
 export function getAdminApp(): App | null {
   try {
@@ -40,5 +41,5 @@ export function getFirestore() {
   if (!adminApp) {
     throw new Error('Firebase Admin not initialized');
   }
-  return adminApp.firestore();
+  return getAdminFirestore(adminApp);
 }
