@@ -5,24 +5,7 @@ import { collection, query, orderBy, limit, startAfter, getDocs, where, Timestam
 import { db } from '../../lib/firebase';
 import { FaSearch, FaChevronLeft, FaChevronRight, FaArrowLeft } from 'react-icons/fa';
 import Link from 'next/link';
-
-interface TranscriptionAnalysis {
-  strategy: string;
-  timestamp: Timestamp;
-  model: string;
-}
-
-interface Transcription {
-  id: string;
-  text: string;
-  timestamp: Timestamp;
-  status: 'draft' | 'completed' | 'analyzed' | 'processing' | 'error';
-  analysis?: TranscriptionAnalysis;
-  metadata?: {
-    source?: 'recording' | 'manual' | 'edited';
-    wordCount?: number;
-  };
-}
+import type { Transcription } from '../../types/firestore';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -73,21 +56,32 @@ export default function Library() {
         ]);
 
         // Combine and deduplicate results
-        const results = new Map<string, any>();
+        const results = new Map<string, Transcription & { matchType: 'text' | 'analysis' | 'both' }>();
         
         if (textSnapshot) {
           textSnapshot.docs.forEach(doc => {
-            results.set(doc.id, { id: doc.id, ...doc.data(), matchType: 'text' });
+            results.set(doc.id, { 
+              id: doc.id, 
+              ...doc.data(), 
+              matchType: 'text' 
+            } as Transcription & { matchType: 'text' | 'analysis' | 'both' });
           });
         }
         
         if (analysisSnapshot) {
           analysisSnapshot.docs.forEach(doc => {
             if (!results.has(doc.id)) {
-              results.set(doc.id, { id: doc.id, ...doc.data(), matchType: 'analysis' });
+              results.set(doc.id, { 
+                id: doc.id, 
+                ...doc.data(), 
+                matchType: 'analysis' 
+              } as Transcription & { matchType: 'text' | 'analysis' | 'both' });
             } else {
               // If document matches both queries, mark it as such
-              results.get(doc.id).matchType = 'both';
+              const existing = results.get(doc.id);
+              if (existing) {
+                existing.matchType = 'both';
+              }
             }
           });
         }
@@ -136,7 +130,6 @@ export default function Library() {
       console.error('Error fetching transcriptions:', error);
       setIsLoading(false);
       
-      // Show Firebase index creation link if that's the error
       if (error instanceof Error && error.message.includes('index')) {
         console.error('Firebase Index Creation Link:', error.message);
         const urlMatch = error.message.match(/https:\/\/console\.firebase\.google\.com\S+/);
@@ -145,7 +138,7 @@ export default function Library() {
         }
       }
     }
-  }, []);
+  }, [lastVisible]);
 
   useEffect(() => {
     fetchTranscriptions();

@@ -10,18 +10,23 @@ export interface TranscriptionMetadata {
 
 export interface TranscriptionAnalysis {
   strategy: string;
-  timestamp: Timestamp | FieldValue;
+  timestamp: Timestamp;
   model: string;
-  keyPoints?: string[];
 }
 
 export interface Transcription {
+  id: string;
   text: string;
-  timestamp: Timestamp | FieldValue;
-  createdAt: string;
-  metadata: TranscriptionMetadata;
-  status: 'draft' | 'completed' | 'analyzed';
+  textLower?: string;
+  timestamp: Timestamp;
+  status: 'draft' | 'completed' | 'analyzed' | 'processing' | 'error';
   analysis?: TranscriptionAnalysis;
+  metadata?: {
+    source?: 'recording' | 'manual' | 'edited';
+    wordCount?: number;
+  };
+  matchType?: 'text' | 'analysis' | 'both';
+  updatedAt?: Date;
 }
 
 export interface TranscriptionWithId extends Transcription {
