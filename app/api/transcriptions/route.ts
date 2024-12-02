@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getTranscriptions, getTranscription, deleteTranscription, updateTranscription } from "../../../utils/firestore";
+import { getTranscriptions, getTranscription, deleteTranscription } from "../../../utils/firestore";
 
 export async function GET(request: Request) {
   try {

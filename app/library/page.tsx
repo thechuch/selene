@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { collection, query, orderBy, limit, startAfter, getDocs, where, Timestamp } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { FaSearch, FaChevronLeft, FaChevronRight, FaArrowLeft } from 'react-icons/fa';
@@ -34,7 +34,7 @@ export default function Library() {
   const [isLoading, setIsLoading] = useState(true);
   const [lastVisible, setLastVisible] = useState<any>(null);
 
-  const fetchTranscriptions = async (searchTerm = '', reset = false) => {
+  const fetchTranscriptions = useCallback(async (searchTerm = '', reset = false) => {
     try {
       setIsLoading(true);
       let q;
@@ -145,11 +145,11 @@ export default function Library() {
         }
       }
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchTranscriptions();
-  }, []);
+  }, [fetchTranscriptions]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
