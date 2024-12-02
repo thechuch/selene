@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
-import { collection, query, orderBy, limit, startAfter, getDocs, where, Timestamp } from 'firebase/firestore';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { collection, query, orderBy, limit, startAfter, getDocs, where } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { FaSearch, FaChevronLeft, FaChevronRight, FaArrowLeft } from 'react-icons/fa';
 import Link from 'next/link';
@@ -15,47 +15,51 @@ export default function Library() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
-  const [lastVisible, setLastVisible] = useState<any>(null);
+  const lastVisibleRef = useRef<any>(null);
+  const searchTimeoutRef = useRef<NodeJS.Timeout>();
+
+  // Memoize the query functions to prevent unnecessary recreations
+  const createBaseQuery = useCallback(() => {
+    return query(
+      collection(db, 'transcriptions'),
+      orderBy('timestamp', 'desc'),
+      limit(ITEMS_PER_PAGE)
+    );
+  }, []);
+
+  const createSearchQueries = useCallback((searchTerm: string) => {
+    const searchLower = searchTerm.toLowerCase();
+    return {
+      textQuery: query(
+        collection(db, 'transcriptions'),
+        orderBy('textLower'),
+        orderBy('timestamp', 'desc'),
+        where('textLower', '>=', searchLower),
+        where('textLower', '<=', searchLower + '\uf8ff'),
+        limit(ITEMS_PER_PAGE)
+      ),
+      analysisQuery: query(
+        collection(db, 'transcriptions'),
+        orderBy('analysis.strategy'),
+        where('analysis.strategy', '>=', searchLower),
+        where('analysis.strategy', '<=', searchLower + '\uf8ff'),
+        limit(ITEMS_PER_PAGE)
+      )
+    };
+  }, []);
 
   const fetchTranscriptions = useCallback(async (searchTerm = '', reset = false) => {
     try {
       setIsLoading(true);
-      let q;
 
       if (searchTerm) {
-        const searchLower = searchTerm.toLowerCase();
-        
-        // Create two queries: one for text search and one for analysis search
-        const textQuery = query(
-          collection(db, 'transcriptions'),
-          orderBy('textLower'),
-          orderBy('timestamp', 'desc'),
-          where('textLower', '>=', searchLower),
-          where('textLower', '<=', searchLower + '\uf8ff'),
-          limit(ITEMS_PER_PAGE)
-        );
+        const { textQuery, analysisQuery } = createSearchQueries(searchTerm);
 
-        const analysisQuery = query(
-          collection(db, 'transcriptions'),
-          orderBy('analysis.strategy'),
-          where('analysis.strategy', '>=', searchLower),
-          where('analysis.strategy', '<=', searchLower + '\uf8ff'),
-          limit(ITEMS_PER_PAGE)
-        );
-
-        // Execute both queries
         const [textSnapshot, analysisSnapshot] = await Promise.all([
-          getDocs(textQuery).catch(e => {
-            console.error('Text search error:', e);
-            return null;
-          }),
-          getDocs(analysisQuery).catch(e => {
-            console.error('Analysis search error:', e);
-            return null;
-          })
+          getDocs(textQuery).catch(() => null),
+          getDocs(analysisQuery).catch(() => null)
         ]);
 
-        // Combine and deduplicate results
         const results = new Map<string, Transcription & { matchType: 'text' | 'analysis' | 'both' }>();
         
         if (textSnapshot) {
@@ -77,7 +81,6 @@ export default function Library() {
                 matchType: 'analysis' 
               } as Transcription & { matchType: 'text' | 'analysis' | 'both' });
             } else {
-              // If document matches both queries, mark it as such
               const existing = results.get(doc.id);
               if (existing) {
                 existing.matchType = 'both';
@@ -86,25 +89,23 @@ export default function Library() {
           });
         }
 
-        // Convert map to array and sort by timestamp
         const combinedResults = Array.from(results.values())
           .sort((a, b) => b.timestamp.seconds - a.timestamp.seconds)
           .slice(0, ITEMS_PER_PAGE);
 
         setTranscriptions(combinedResults);
-        setLastVisible(null); // Reset pagination for combined results
-        
-        // Set total pages based on unique matches
+        lastVisibleRef.current = null;
         setTotalPages(Math.ceil(results.size / ITEMS_PER_PAGE));
 
       } else {
-        // Regular listing without search
-        q = query(
-          collection(db, 'transcriptions'),
-          orderBy('timestamp', 'desc'),
-          ...(lastVisible && !reset ? [startAfter(lastVisible)] : []),
-          limit(ITEMS_PER_PAGE)
-        );
+        const baseQuery = createBaseQuery();
+        const q = reset ? baseQuery : 
+          query(
+            collection(db, 'transcriptions'),
+            orderBy('timestamp', 'desc'),
+            ...(lastVisibleRef.current ? [startAfter(lastVisibleRef.current)] : []),
+            limit(ITEMS_PER_PAGE)
+          );
 
         const snapshot = await getDocs(q);
         const docs = snapshot.docs.map(doc => ({
@@ -113,56 +114,65 @@ export default function Library() {
         })) as Transcription[];
 
         setTranscriptions(docs);
-        
-        if (snapshot.docs.length > 0) {
-          setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
-        } else {
-          setLastVisible(null);
-        }
+        lastVisibleRef.current = snapshot.docs[snapshot.docs.length - 1] || null;
 
-        // Get total count for pagination
-        const countSnapshot = await getDocs(collection(db, 'transcriptions'));
-        setTotalPages(Math.ceil(countSnapshot.size / ITEMS_PER_PAGE));
+        if (reset) {
+          const countSnapshot = await getDocs(collection(db, 'transcriptions'));
+          setTotalPages(Math.ceil(countSnapshot.size / ITEMS_PER_PAGE));
+        }
       }
-      
-      setIsLoading(false);
     } catch (error) {
       console.error('Error fetching transcriptions:', error);
-      setIsLoading(false);
-      
       if (error instanceof Error && error.message.includes('index')) {
-        console.error('Firebase Index Creation Link:', error.message);
         const urlMatch = error.message.match(/https:\/\/console\.firebase\.google\.com\S+/);
         if (urlMatch) {
           alert(`Please create the required index by visiting: ${urlMatch[0]}`);
         }
       }
+    } finally {
+      setIsLoading(false);
     }
-  }, [lastVisible]);
+  }, [createBaseQuery, createSearchQueries]);
 
+  // Debounced search
+  const debouncedSearch = useCallback((searchTerm: string) => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    searchTimeoutRef.current = setTimeout(() => {
+      fetchTranscriptions(searchTerm, true);
+    }, 300);
+  }, [fetchTranscriptions]);
+
+  // Initial load
   useEffect(() => {
-    fetchTranscriptions();
+    fetchTranscriptions('', true);
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
   }, [fetchTranscriptions]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setCurrentPage(1);
-    fetchTranscriptions(searchQuery, true);
+    debouncedSearch(searchQuery);
   };
 
-  const handleNextPage = () => {
+  const handleNextPage = useCallback(() => {
     if (currentPage < totalPages) {
       setCurrentPage(prev => prev + 1);
       fetchTranscriptions(searchQuery);
     }
-  };
+  }, [currentPage, totalPages, fetchTranscriptions, searchQuery]);
 
-  const handlePrevPage = () => {
+  const handlePrevPage = useCallback(() => {
     if (currentPage > 1) {
       setCurrentPage(prev => prev - 1);
       fetchTranscriptions(searchQuery, true);
     }
-  };
+  }, [currentPage, fetchTranscriptions, searchQuery]);
 
   const getStatusColor = (status: Transcription['status']) => {
     switch (status) {
