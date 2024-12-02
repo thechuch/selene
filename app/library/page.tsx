@@ -1,11 +1,29 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { collection, query, orderBy, limit, startAfter, getDocs, where } from 'firebase/firestore';
+import { collection, query, orderBy, limit, startAfter, getDocs, where, Timestamp } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { FaSearch, FaChevronLeft, FaChevronRight, FaArrowLeft } from 'react-icons/fa';
 import Link from 'next/link';
-import type { Transcription } from '../../types/firestore';
+
+interface TranscriptionAnalysis {
+  strategy: string;
+  timestamp: Timestamp;
+  model: string;
+}
+
+interface Transcription {
+  id: string;
+  text: string;
+  timestamp: Timestamp;
+  status: 'draft' | 'completed' | 'analyzed' | 'processing' | 'error';
+  analysis?: TranscriptionAnalysis;
+  metadata?: {
+    source?: 'recording' | 'manual' | 'edited';
+    wordCount?: number;
+  };
+  matchType?: 'text' | 'analysis' | 'both';
+}
 
 const ITEMS_PER_PAGE = 10;
 
@@ -15,10 +33,10 @@ export default function Library() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const lastVisibleRef = useRef<any>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout>();
 
-  // Memoize the query functions to prevent unnecessary recreations
   const createBaseQuery = useCallback(() => {
     return query(
       collection(db, 'transcriptions'),
@@ -51,6 +69,7 @@ export default function Library() {
   const fetchTranscriptions = useCallback(async (searchTerm = '', reset = false) => {
     try {
       setIsLoading(true);
+      setError(null);
 
       if (searchTerm) {
         const { textQuery, analysisQuery } = createSearchQueries(searchTerm);
@@ -60,7 +79,7 @@ export default function Library() {
           getDocs(analysisQuery).catch(() => null)
         ]);
 
-        const results = new Map<string, Transcription & { matchType: 'text' | 'analysis' | 'both' }>();
+        const results = new Map<string, Transcription>();
         
         if (textSnapshot) {
           textSnapshot.docs.forEach(doc => {
@@ -68,7 +87,7 @@ export default function Library() {
               id: doc.id, 
               ...doc.data(), 
               matchType: 'text' 
-            } as Transcription & { matchType: 'text' | 'analysis' | 'both' });
+            } as Transcription);
           });
         }
         
@@ -79,7 +98,7 @@ export default function Library() {
                 id: doc.id, 
                 ...doc.data(), 
                 matchType: 'analysis' 
-              } as Transcription & { matchType: 'text' | 'analysis' | 'both' });
+              } as Transcription);
             } else {
               const existing = results.get(doc.id);
               if (existing) {
@@ -123,10 +142,11 @@ export default function Library() {
       }
     } catch (error) {
       console.error('Error fetching transcriptions:', error);
+      setError(error instanceof Error ? error.message : 'Failed to fetch transcriptions');
       if (error instanceof Error && error.message.includes('index')) {
         const urlMatch = error.message.match(/https:\/\/console\.firebase\.google\.com\S+/);
         if (urlMatch) {
-          alert(`Please create the required index by visiting: ${urlMatch[0]}`);
+          setError(`Please create the required index by visiting: ${urlMatch[0]}`);
         }
       }
     } finally {
@@ -199,10 +219,9 @@ export default function Library() {
           <h1 className="text-4xl font-light bg-gradient-to-r from-yellow-400 via-orange-500 to-orange-700 text-transparent bg-clip-text">
             Transcription Library
           </h1>
-          <div className="w-24" /> {/* Spacer for alignment */}
+          <div className="w-24" />
         </div>
 
-        {/* Search Bar */}
         <form onSubmit={handleSearch} className="mb-8">
           <div className="relative">
             <input
@@ -216,10 +235,19 @@ export default function Library() {
           </div>
         </form>
 
-        {/* Transcriptions Grid */}
+        {error && (
+          <div className="bg-red-500/10 border border-red-500 rounded-lg p-4 mb-8 text-red-500">
+            {error}
+          </div>
+        )}
+
         {isLoading ? (
           <div className="flex justify-center items-center h-64">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400" />
+          </div>
+        ) : transcriptions.length === 0 ? (
+          <div className="text-center text-gray-400 py-12">
+            {searchQuery ? 'No matching transcriptions found.' : 'No transcriptions yet.'}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -251,7 +279,7 @@ export default function Library() {
                 {transcription.analysis && (
                   <div className="mt-4 p-4 bg-gray-700 rounded-lg">
                     <h3 className="text-blue-400 font-semibold mb-2">Analysis</h3>
-                    <p className="text-gray-300 text-sm line-clamp-4">
+                    <p className="text-gray-300 whitespace-pre-wrap line-clamp-3">
                       {transcription.analysis.strategy}
                     </p>
                   </div>
@@ -261,26 +289,27 @@ export default function Library() {
           </div>
         )}
 
-        {/* Pagination */}
-        <div className="mt-8 flex justify-center items-center space-x-4">
-          <button
-            onClick={handlePrevPage}
-            disabled={currentPage === 1}
-            className="p-2 rounded-lg bg-gray-800 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <FaChevronLeft className="w-4 h-4" />
-          </button>
-          <span className="text-gray-400">
-            Page {currentPage} of {totalPages}
-          </span>
-          <button
-            onClick={handleNextPage}
-            disabled={currentPage === totalPages}
-            className="p-2 rounded-lg bg-gray-800 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <FaChevronRight className="w-4 h-4" />
-          </button>
-        </div>
+        {!isLoading && transcriptions.length > 0 && (
+          <div className="flex justify-center items-center space-x-4 mt-8">
+            <button
+              onClick={handlePrevPage}
+              disabled={currentPage === 1}
+              className="p-2 text-gray-400 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <FaChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="text-gray-400">
+              Page {currentPage} of {totalPages}
+            </span>
+            <button
+              onClick={handleNextPage}
+              disabled={currentPage >= totalPages}
+              className="p-2 text-gray-400 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <FaChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

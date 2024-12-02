@@ -35,7 +35,7 @@ const thinkingPhrases = [
   "Preparing insights"
 ];
 
-const RECENT_ITEMS_LIMIT = 1;
+const RECENT_ITEMS_LIMIT = 5;
 
 export default function TranscriptionList() {
   const [transcriptions, setTranscriptions] = useState<Transcription[]>([]);
@@ -45,24 +45,34 @@ export default function TranscriptionList() {
   const [thinkingIndex, setThinkingIndex] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const thinkingInterval = useRef<NodeJS.Timeout | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const q = query(
-      collection(db, 'transcriptions'),
-      orderBy('timestamp', 'desc'),
-      limit(RECENT_ITEMS_LIMIT)
-    );
+    try {
+      const q = query(
+        collection(db, 'transcriptions'),
+        orderBy('timestamp', 'desc'),
+        limit(RECENT_ITEMS_LIMIT)
+      );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const newTranscriptions = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Transcription[];
-      
-      setTranscriptions(newTranscriptions);
-    });
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const newTranscriptions = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as Transcription[];
+        
+        setTranscriptions(newTranscriptions);
+        setError(null);
+      }, (err) => {
+        console.error('Error in transcriptions snapshot:', err);
+        setError('Failed to load recent transcriptions');
+      });
 
-    return () => unsubscribe();
+      return () => unsubscribe();
+    } catch (err) {
+      console.error('Error setting up transcriptions listener:', err);
+      setError('Failed to initialize transcriptions listener');
+    }
   }, []);
 
   useEffect(() => {
