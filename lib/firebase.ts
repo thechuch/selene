@@ -1,5 +1,7 @@
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
+
+let clientDb: ReturnType<typeof getFirestore> | null = null;
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -15,9 +17,26 @@ console.log('Firebase Client Config Check:', {
   projectId: firebaseConfig.projectId
 });
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-console.log('Firebase client initialized successfully');
+if (!firebaseConfig.projectId || !firebaseConfig.apiKey) {
+  throw new Error('Missing required Firebase configuration. Check your environment variables.');
+}
 
-const db = getFirestore(app);
-export { db }; 
+// Initialize Firebase
+let app;
+try {
+  if (!getApps().length) {
+    app = initializeApp(firebaseConfig);
+    console.log('Firebase client initialized successfully');
+  } else {
+    app = getApps()[0];
+  }
+
+  if (!clientDb) {
+    clientDb = getFirestore(app);
+  }
+} catch (error) {
+  console.error('Error initializing Firebase client:', error);
+  throw error;
+}
+
+export const db = clientDb; 
