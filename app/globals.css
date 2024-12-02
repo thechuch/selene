@@ -2,13 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@200;300;400;600&display=swap");
-
 /* Custom global styles */
 body {
-  font-family: "Poppins", Arial, sans-serif;
+  font-family: var(--font-poppins), Arial, sans-serif;
   margin: 0;
   color: #ffffff;
+  background: #000000;
+  min-height: 100vh;
+}
+
+h1.selene-title {
+  font-size: 4rem;
+  font-weight: 300;
+  background: linear-gradient(to right, #facc15, #ea580c, #c2410c);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-align: center;
+  margin-bottom: 3rem;
 }
 
 /* Gradient border for focus state */
@@ -29,8 +40,16 @@ body {
 
 /* Textarea auto-resize styles */
 textarea {
-  transition: height 0.2s ease;
+  transition: all 0.2s ease;
   overflow: hidden;
+  background: rgba(0, 0, 0, 0.2);
+  border: none;
+  color: white;
+}
+
+textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.3);
 }
 
 /* Add to your existing CSS */
@@ -50,4 +69,49 @@ textarea {
   .no-print {
     display: none !important;
   }
+}
+
+/* Container styles */
+.main-container {
+  max-width: 64rem;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+/* Button styles */
+.icon-button {
+  padding: 1rem;
+  border-radius: 9999px;
+  transition: all 0.2s ease;
+}
+
+.icon-button.primary {
+  background-color: #facc15;
+}
+
+.icon-button.primary:hover {
+  background-color: #ea580c;
+}
+
+.icon-button.danger {
+  background-color: #ef4444;
+}
+
+.icon-button.danger:hover {
+  background-color: #dc2626;
+}
+
+/* Status message styles */
+.status-message {
+  margin-top: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #facc15;
+}
+
+.status-message .icon {
+  width: 1rem;
+  height: 1rem;
+  margin-right: 0.25rem;
 }

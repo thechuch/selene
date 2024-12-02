@@ -25,9 +25,14 @@ interface Transcription {
 }
 
 const thinkingPhrases = [
-  "Analyzing context",
-  "Processing insights",
-  "Generating strategy"
+  "Analyzing business context",
+  "Processing industry data",
+  "Identifying market opportunities",
+  "Evaluating competitive landscape",
+  "Formulating strategic recommendations",
+  "Generating action items",
+  "Finalizing strategy report",
+  "Preparing insights"
 ];
 
 const RECENT_ITEMS_LIMIT = 1;
@@ -82,9 +87,18 @@ export default function TranscriptionList() {
 
   const startThinkingAnimation = () => {
     setThinkingIndex(0);
+    let currentIndex = 0;
+    
     thinkingInterval.current = setInterval(() => {
-      setThinkingIndex(prev => (prev + 1) % thinkingPhrases.length);
-    }, 2000);
+      currentIndex++;
+      if (currentIndex >= thinkingPhrases.length) {
+        if (thinkingInterval.current) {
+          clearInterval(thinkingInterval.current);
+        }
+      } else {
+        setThinkingIndex(currentIndex);
+      }
+    }, 2500);
   };
 
   const stopThinkingAnimation = () => {
