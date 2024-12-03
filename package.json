@@ -20,7 +20,8 @@
     "react-dom": "^18.2.0",
     "react-icons": "^5.3.0",
     "socket.io": "^4.8.1",
-    "socket.io-client": "^4.8.1"
+    "socket.io-client": "^4.8.1",
+    "@grpc/grpc-js": "^1.6.9"
   },
   "devDependencies": {
     "@types/formidable": "^3.4.5",

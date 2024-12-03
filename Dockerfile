@@ -1,8 +1,13 @@
 # Use Node.js 18 as the base image
-FROM node:18-alpine as builder
+FROM node:18-slim as builder
 
 # Install dependencies required for node-gyp
-RUN apk add --no-cache python3 make g++ git
+RUN apt-get update && apt-get install -y \
+    python3 \
+    make \
+    g++ \
+    git \
+    && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /app
@@ -20,7 +25,7 @@ COPY . .
 RUN npm run build
 
 # Use a new stage for the final image
-FROM node:18-alpine
+FROM node:18-slim
 
 # Set working directory
 WORKDIR /app
@@ -33,6 +38,15 @@ COPY --from=builder /app/.next/standalone .
 # Expose the port the app runs on
 ENV PORT=8080
 EXPOSE 8080
+
+# Copy OpenSSL configuration
+COPY openssl.cnf /etc/ssl/
+ENV OPENSSL_CONF=/etc/ssl/openssl.cnf
+
+# Install OpenSSL dependencies
+RUN apt-get update && apt-get install -y \
+    libssl3 \
+    && rm -rf /var/lib/apt/lists/*
 
 # Start the server
 CMD ["node", "server.js"]
